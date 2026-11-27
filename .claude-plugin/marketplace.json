@@ -1,0 +1,15 @@
+{
+  "name": "structuremindmap",
+  "description": "StructureMindMap, a mind-mapping app that runs as your own Claude artifact",
+  "owner": {
+    "name": "Henri Block",
+    "url": "https://github.com/Hablock"
+  },
+  "plugins": [
+    {
+      "name": "structuremindmap",
+      "source": "./plugins/structuremindmap",
+      "description": "Installs and updates StructureMindMap as your own artifact, so it runs on your Claude plan and saves maps to your account"
+    }
+  ]
+}

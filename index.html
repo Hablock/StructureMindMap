@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="structuremindmap-version" content="2.8.0">
 <title>StructureMindMap</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -310,7 +311,7 @@ dialog label{display:flex;gap:8px;align-items:center;min-height:28px}
       <span>Staging area</span><span>Raw notes left of the map. Select the area and paste, double-click or press Enter to add a note, drag notes onto the map</span>
       <span>Chat</span><span>Ask Claude about the map. With nodes selected, changes stay in that branch</span>
     </div>
-    <div class="row"><button class="btn primary" value="ok">Close</button></div>
+    <div class="row"><span id="appVersion" style="margin-right:auto;font-size:12px;color:var(--muted);align-self:center"></span><button class="btn primary" value="ok">Close</button></div>
   </form>
 </dialog>
 
@@ -1835,6 +1836,7 @@ if (lsGet('structuremindmap.stage') !== '0' && innerWidth >= 900) { vp.classList
 else $('#stageBtn').setAttribute('aria-pressed', 'false');
 applyView();
 setStatus('pending'); $('#status').textContent = '';
+{ const v = document.querySelector('meta[name=structuremindmap-version]'); if (v) $('#appVersion').textContent = 'StructureMindMap v' + v.content; }
 initStore().catch(() => { maps = store.localOk ? readLocalAll() : {}; store.mode = store.localOk ? 'local' : 'memory'; const l = Object.values(maps).sort((a, b) => b.updated - a.updated); if (l.length) { switchMap(l[0].id); $('#loading').style.display = 'none'; setStatus('saved'); return; } const m = welcomeMap(); maps[m.id] = m; switchMap(m.id); $('#loading').style.display = 'none'; setStatus('saved'); });
 
 /* ---------- tooltips for toolbar and panel buttons ---------- */

@@ -13,11 +13,13 @@ StructureMindMap is a minimal mind-mapping and information-architecture tool bui
 - **Language:** English UI. Content in English or Finnish. Claude writes node text in the language of the surrounding nodes and replies in the language the user writes in.
 - **Scale:** usually under 100 nodes per map, but must stay usable with several hundred. No hard node limit.
 
+**Distribution:** every user runs their own copy of the artifact, so Claude features use their own plan and maps save to their own account. A shared link to someone else's copy opens the editor only, because Claude features and account saving don't work for people other than the owner. The repo is also a Claude plugin marketplace: users add `Hablock/StructureMindMap` under Customize > Plugins, install the StructureMindMap plugin, and say "Set up StructureMindMap". Its skill publishes the bundled index.html as the user's own artifact with the sample, db and user capabilities. "Update StructureMindMap" republishes the same artifact, so maps are kept. The version is stored in a `structuremindmap-version` meta tag and in the plugin manifest; `scripts/release.sh` sets both and copies index.html into the plugin.
+
 ## Version history
 
 | Version | Changes |
 | --- | --- |
-| v2.8 | Auto-save rebuilt: every change is written at once to a backup copy in the browser, then to the Claude account with retries; on load the two are merged so a reload or failed save no longer loses maps. A new map's name is selected for typing |
+| v2.8 | Auto-save rebuilt: every change is written at once to a backup copy in the browser, then to the Claude account with retries; on load the two are merged so a reload or failed save no longer loses maps. A new map's name is selected for typing. The version number shows in the shortcuts list. A Claude plugin installs and updates the app |
 | v2.7.3 | Shortcuts help grouped under headings with dividers (Adding and editing, Selecting and moving, Clipboard and history, View, Tools) and more space between rows |
 | v2.7.2 | Fix: primary dialog buttons (Close, Delete, Generate) turn dark with white text on hover instead of dark on dark |
 | v2.7.1 | Fix: dialog buttons (Shortcuts Close, confirmations, paste and Generate dialogs) did nothing in the published artifact; they now close their dialog directly |

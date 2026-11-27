@@ -1,0 +1,1908 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="structuremindmap-version" content="2.8.0">
+<title>StructureMindMap</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* VOICE: a quiet, precise work tool. The map is the page; chrome stays out of the way.
+   IDEA: a drafting sheet: white paper, ink lines, coloured-pencil branches.
+   PICTURE: the live map fills the whole window, edge to edge.
+   COLOUR and TYPE: white or near-black ground, ink text, one blue for selection, green for Claude's suggestions. Inter.
+   LAYOUT: one thin toolbar on top, full-bleed canvas, zoom controls bottom right, review bar bottom centre. */
+:root{color-scheme:light dark;
+  --bg:light-dark(#ffffff,#14161b);--panel:light-dark(#f5f6f8,#1b1e25);--ink:light-dark(#1d2433,#e7eaf0);
+  --muted:light-dark(#5d6577,#9aa3b5);--rule:light-dark(#e2e5eb,#2b3039);--line:light-dark(#a3abba,#5b6475);
+  --accent:light-dark(#2f6fed,#6d9bff);--ok:light-dark(#1f8a4c,#4cc38a);--bad:light-dark(#c4343a,#ff6b70);
+  --shadow:light-dark(0 4px 18px rgba(20,30,50,.12),0 4px 18px rgba(0,0,0,.5)) }
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 Inter,system-ui,-apple-system,"Segoe UI",sans-serif;overflow:hidden;display:grid;grid-template-rows:auto 1fr}
+button{font:inherit;color:inherit}
+.bar{display:flex;flex-wrap:wrap;align-items:center;gap:6px 14px;padding:8px 12px;border-bottom:1px solid var(--rule);background:var(--bg);position:relative;z-index:5}
+.brand{display:flex;align-items:center;gap:10px;margin-right:auto;min-width:0}
+.brand b{font-weight:600;white-space:nowrap}
+.title{color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:28vw;border:0;background:none;padding:6px 8px;border-radius:6px;cursor:text;font:inherit;text-align:left}
+.title:hover{background:var(--panel);color:var(--ink)}
+.title:focus-visible{outline:2px solid var(--accent)}
+.rn{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--accent);border-radius:6px;padding:5px 8px;width:min(320px,40vw);outline:none}
+#maplist .rn{width:100%;margin:4px 0}
+.grp{display:flex;align-items:center;gap:4px}
+.btn{height:34px;padding:0 11px;border:1px solid var(--rule);background:var(--bg);border-radius:8px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.btn:hover:not(:disabled){background:var(--panel)}
+.btn:disabled{opacity:.45;cursor:default}
+.btn:focus-visible,.seg button:focus-visible,.sw:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.btn.icon{width:34px;padding:0;justify-content:center}
+.btn.ai{border-color:color-mix(in srgb,var(--accent) 45%,var(--rule));color:var(--accent)}
+.seg{display:flex;border:1px solid var(--rule);border-radius:8px;overflow:hidden}
+.seg button{height:32px;padding:0 11px;border:0;background:none;cursor:pointer;white-space:nowrap}
+.seg button+button{border-left:1px solid var(--rule)}
+.seg button[aria-pressed=true]{background:var(--ink);color:var(--bg)}
+#status{color:var(--muted);font-size:12.5px;white-space:nowrap}
+svg.i{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+
+#viewport{position:relative;overflow:hidden;outline:none;cursor:default;touch-action:none;background:
+  radial-gradient(circle,color-mix(in srgb,var(--line) 35%,transparent) 1px,transparent 1.2px) 0 0/24px 24px var(--bg)}
+#viewport.panning,#viewport.panning *{cursor:grabbing!important}
+#stage{position:absolute;left:0;top:0;bottom:0;width:min(344px,88vw);background:var(--panel);border-right:1px solid var(--rule);display:none;flex-direction:column;z-index:8;box-shadow:var(--shadow)}
+#viewport.stage-open #stage{display:flex}
+#stage header{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-bottom:1px solid var(--rule)}
+#stage h2{font-size:15px;margin:0}
+#stage.sel #stageNotes{outline:2px solid var(--accent);outline-offset:-6px;border-radius:12px}
+#stage .hint{padding:10px 14px 0;color:var(--muted);font-size:13px;line-height:1.45}
+#stageNotes{flex:1;overflow:auto;padding:14px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;align-content:start}
+.snote{aspect-ratio:1;padding:12px 12px 10px;background:light-dark(#fff27a,#f3df5f);color:#2b2a1d;box-shadow:0 1px 2px rgba(0,0,0,.18),0 6px 12px -6px rgba(0,0,0,.3);
+  font-size:13px;line-height:1.38;white-space:pre-wrap;overflow-wrap:anywhere;cursor:default;user-select:none;-webkit-user-select:none;display:flex;flex-direction:column;overflow:hidden;position:relative}
+.snote:nth-child(3n+2){background:light-dark(#ffe76a,#ecd655)}.snote:nth-child(3n){background:light-dark(#fff58f,#f6e56b)}
+.snote .t{outline:none;flex:1;overflow:hidden;-webkit-mask-image:linear-gradient(#000 75%,transparent);mask-image:linear-gradient(#000 75%,transparent)}
+.snote .t:empty::after{content:"\200b"}
+.snote.sel{outline:2px solid var(--accent);outline-offset:2px}
+#stage.blur .snote.sel{outline-style:dashed;outline-color:color-mix(in srgb,var(--accent) 55%,transparent)}
+.snote.editing{user-select:text;-webkit-user-select:text;cursor:text}
+.snote.editing .t{overflow:auto;-webkit-mask-image:none;mask-image:none}
+.snote.dragging{opacity:.35}
+.snote .na{display:flex;margin-top:6px}
+.snote .na button{font-size:11.5px;padding:4px 7px;border:1px solid rgba(0,0,0,.25);color:#2b2a1d;border-radius:6px;background:rgba(255,255,255,.55);cursor:pointer}
+#chat{position:absolute;right:0;top:0;bottom:0;width:min(380px,92vw);background:var(--bg);border-left:1px solid var(--rule);display:none;flex-direction:column;z-index:9;box-shadow:var(--shadow)}
+#viewport.chat-open #chat{display:flex}
+#chat header{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-bottom:1px solid var(--rule)}
+#chat h2{font-size:15px;margin:0}
+#scope{padding:8px 12px;font-size:12.5px;color:var(--muted);border-bottom:1px solid var(--rule)}
+#msgs{flex:1;overflow:auto;padding:12px;display:flex;flex-direction:column;gap:8px}
+.msg{padding:8px 11px;border-radius:10px;max-width:92%;white-space:pre-wrap;overflow-wrap:anywhere;font-size:14px}
+.msg.u{align-self:flex-end;background:var(--ink);color:var(--bg)}
+.msg.a{align-self:flex-start;background:var(--panel)}
+.msg.err{color:var(--bad)}
+#msgs .empty p{margin:0 0 10px;color:var(--muted)}
+.chip{display:block;width:100%;text-align:left;border:1px solid var(--rule);background:var(--bg);border-radius:8px;padding:8px 10px;margin-top:6px;cursor:pointer;min-height:40px}
+.chip:hover{background:var(--panel)}
+#chatForm{border-top:1px solid var(--rule);padding:10px 12px;display:grid;gap:8px}
+#chatIn{width:100%;resize:vertical;min-height:64px;max-height:40vh;font:15px/1.45 Inter,system-ui,sans-serif;padding:8px 10px;border:1px solid var(--rule);border-radius:10px;background:var(--panel);color:var(--ink)}
+#chatIn:focus{outline:2px solid var(--accent);outline-offset:1px}
+#chatForm .row{justify-content:space-between;align-items:center}
+#chatForm small{color:var(--muted);font-size:12px}
+.btn[aria-pressed=true]{background:color-mix(in srgb,var(--accent) 12%,var(--bg))}
+.node.sug-edit{border-style:dashed;border-color:#d99a1e;background:color-mix(in srgb,#d99a1e 11%,var(--bg));color:var(--ink)}
+.node.sug-move{border-style:dashed;border-color:var(--accent);background:color-mix(in srgb,var(--accent) 9%,var(--bg));color:var(--ink)}
+.node.sug-del{border-style:dashed;border-color:var(--bad);background:color-mix(in srgb,var(--bad) 8%,var(--bg));color:var(--ink)}
+.node.sug-del .t{text-decoration:line-through;opacity:.7}
+.node.dl.sug-edit,.node.dl.sug-move,.node.dl.sug-del{border-bottom-style:dashed}
+.note{display:block;font-size:11.5px;font-weight:400;color:var(--muted);margin-top:2px;max-width:46ch}
+#world{position:absolute;left:0;top:0;width:0;height:0;transform-origin:0 0}
+#edges{position:absolute;left:0;top:0;width:1px;height:1px;overflow:visible;pointer-events:none}
+#edges path{fill:none;stroke-linecap:round;stroke-linejoin:round}
+
+.node{position:absolute;left:0;top:0;width:max-content;max-width:calc(50ch + 30px);white-space:pre-wrap;overflow-wrap:anywhere;
+  font-size:14px;line-height:1.38;user-select:none;-webkit-user-select:none;cursor:default;color:var(--ink)}
+.node .t{display:inline;outline:none}
+.node .t:empty::after{content:"\200b"}
+.d0{font-size:18px;font-weight:600;padding:12px 20px;border-radius:14px;background:var(--c);color:var(--on);box-shadow:var(--shadow)}
+.d1{font-size:15px;font-weight:500;padding:8px 14px;border-radius:10px;background:color-mix(in srgb,var(--c) 13%,var(--bg));border:1.5px solid var(--c)}
+.d2{padding:6px 11px;border-radius:8px;background:var(--bg);border:1px solid color-mix(in srgb,var(--c) 60%,var(--bg))}
+.dl{padding:2px 3px 4px;border-bottom:1.5px solid var(--c)}
+.node.sel{outline:2px solid var(--accent);outline-offset:3px}
+.node.sub{outline:1px dashed color-mix(in srgb,var(--accent) 55%,transparent);outline-offset:2px}
+.node.editing{user-select:text;-webkit-user-select:text;cursor:text;outline:2px solid var(--accent);outline-offset:3px}
+.node.editing .t{caret-color:var(--accent)}
+.node.dragging{opacity:.3}
+.node.drop{box-shadow:0 0 0 3px var(--accent)}
+.node.ckl{position:absolute}
+.node.ckl.d0{padding-left:42px}.node.ckl.d1{padding-left:36px}.node.ckl.d2{padding-left:32px}.node.ckl.dl{padding-left:22px}
+.ck{position:absolute;top:50%;transform:translateY(-50%);width:16px;height:16px;border:1.5px solid currentColor;border-radius:4px;background:transparent;padding:0;cursor:pointer;opacity:.75;display:grid;place-items:center}
+.d0 .ck{left:16px}.d1 .ck{left:12px}.d2 .ck{left:10px}.dl .ck{left:2px;top:calc(50% - 1px)}
+.ck:hover{opacity:1}
+.ck.on{background:var(--ok);border-color:var(--ok);opacity:1}
+.ck.locked{cursor:default}
+.ck.on::after{content:"";width:8px;height:4px;border:2px solid #fff;border-top:0;border-right:0;transform:translateY(-1px) rotate(-45deg)}
+.node.done:not(.d0) .t{color:var(--muted)}
+.node.d0.done .t{opacity:.7}
+.prog{font-size:11.5px;font-weight:500;opacity:.7;margin-left:7px;white-space:nowrap}
+.node.pending{background:color-mix(in srgb,var(--ok) 11%,var(--bg));border-style:dashed;border-color:var(--ok);color:var(--ink)}
+.node.d0.pending{color:var(--ink)}
+.node.dl.pending{border-bottom-style:dashed}
+.acts{display:inline-flex;gap:3px;margin-left:8px;vertical-align:middle}
+.acts button{width:22px;height:22px;border-radius:6px;border:1px solid var(--rule);background:var(--bg);cursor:pointer;font-size:12px;line-height:1;padding:0}
+.acts button[data-a=ok]{color:var(--ok)}.acts button[data-a=no]{color:var(--bad)}
+.tg{position:absolute;left:0;top:0;min-width:18px;height:18px;padding:0 4px;border-radius:9px;border:1px solid var(--line);background:var(--bg);
+  color:var(--muted);font-size:10.5px;font-weight:600;line-height:16px;text-align:center;cursor:pointer;opacity:0;transition:opacity .12s}
+.tg.closed,.tg.show,.tg:hover{opacity:1}
+#dropline{position:absolute;left:0;top:0;background:var(--accent);border-radius:2px;display:none;pointer-events:none}
+#marquee{position:absolute;border:1px solid var(--accent);background:color-mix(in srgb,var(--accent) 10%,transparent);display:none;pointer-events:none}
+#ghost{position:fixed;left:0;top:0;padding:4px 9px;border-radius:6px;background:var(--ink);color:var(--bg);font-size:12px;pointer-events:none;display:none;z-index:20}
+
+.float{position:absolute;display:flex;gap:4px;align-items:center;background:var(--bg);border:1px solid var(--rule);border-radius:10px;padding:4px;box-shadow:var(--shadow);z-index:4}
+#zoombar{right:calc(var(--rp,0px) + 14px);bottom:14px}
+#zoombar .z{min-width:52px;text-align:center;font-variant-numeric:tabular-nums;color:var(--muted);font-size:12.5px;cursor:pointer;background:none;border:0;height:34px}
+#review{left:calc(50% + (var(--lp,0px) - var(--rp,0px)) / 2);bottom:14px;transform:translateX(-50%);padding:6px 6px 6px 14px;display:none;gap:10px}
+#review span{white-space:nowrap}
+#review .btn.ok{background:var(--ok);border-color:var(--ok);color:#fff}
+#loading{position:absolute;inset:0;display:grid;place-items:center;color:var(--muted);background:var(--bg);z-index:3}
+
+#palette{position:absolute;z-index:15;display:none;grid-template-columns:repeat(5,34px);gap:6px;padding:10px;background:var(--bg);border:1px solid var(--rule);border-radius:10px;box-shadow:var(--shadow)}
+.sw{width:34px;height:34px;border-radius:8px;border:1px solid var(--rule);cursor:pointer;background:var(--sw)}
+.sw.def{background:linear-gradient(135deg,var(--bg) 45%,var(--line) 45% 55%,var(--bg) 55%)}
+
+#drawer{position:absolute;left:0;top:0;bottom:0;width:min(320px,86vw);background:var(--bg);border-right:1px solid var(--rule);box-shadow:var(--shadow);z-index:10;
+  transform:translateX(-105%);transition:transform .18s;display:flex;flex-direction:column}
+#drawer.open{transform:none}
+#drawer header{display:flex;align-items:center;justify-content:space-between;padding:12px;border-bottom:1px solid var(--rule)}
+#drawer h2{font-size:15px;margin:0}
+#maplist{list-style:none;margin:0;padding:6px;overflow:auto;flex:1}
+#maplist li{display:flex;align-items:center;gap:4px;border-radius:8px}
+#maplist li.cur{background:var(--panel)}
+#maplist .open{flex:1;text-align:left;border:0;background:none;padding:9px 10px;cursor:pointer;border-radius:8px;min-height:44px}
+#maplist .open small{display:block;color:var(--muted);font-size:12px}
+#maplist .del{border:0;background:none;color:var(--muted);width:36px;height:36px;border-radius:8px;cursor:pointer}
+#maplist .del:hover{color:var(--bad);background:var(--panel)}
+#drawer footer{padding:10px 12px;border-top:1px solid var(--rule);color:var(--muted);font-size:12.5px}
+
+dialog{border:1px solid var(--rule);border-radius:14px;background:var(--bg);color:var(--ink);padding:0;width:min(560px,92vw);box-shadow:var(--shadow)}
+dialog::backdrop{background:rgba(10,14,22,.35)}
+dialog form{padding:18px 20px;display:grid;gap:14px}
+dialog h2{margin:0;font-size:17px}
+dialog p{margin:0;color:var(--muted)}
+dialog textarea{width:100%;min-height:200px;font:15px/1.5 Inter,system-ui,sans-serif;padding:10px 12px;border:1px solid var(--rule);border-radius:10px;background:var(--panel);color:var(--ink);resize:vertical}
+dialog textarea:focus{outline:2px solid var(--accent);outline-offset:1px}
+dialog label{display:flex;gap:8px;align-items:center;min-height:28px}
+.row{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap}
+.btn.primary{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.btn.primary:hover:not(:disabled){background:light-dark(#36405a,#2c3242);border-color:light-dark(#36405a,#4a5268);color:#fff}
+#helpDlg{width:min(640px,92vw)}
+.keys{display:grid;grid-template-columns:auto 1fr;gap:10px 18px;font-size:13.5px;line-height:1.45}
+.keys h3{grid-column:1/-1;margin:8px 0 0;padding-top:12px;border-top:1px solid var(--rule);font-size:11.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.keys h3:first-child{margin-top:0;padding-top:0;border-top:0}
+.keys kbd{font:12px/1.6 Inter,system-ui,sans-serif;border:1px solid var(--rule);border-bottom-width:2px;border-radius:5px;padding:0 5px;white-space:nowrap;background:var(--panel)}
+#tip{position:fixed;left:0;top:0;z-index:40;pointer-events:none;background:var(--ink);color:var(--bg);font-size:12.5px;line-height:1.4;padding:6px 9px;border-radius:6px;max-width:280px;box-shadow:var(--shadow);opacity:0;transition:opacity .1s}
+#tip.on{opacity:1}
+#tip kbd{font:inherit;opacity:.75}
+#toast{position:fixed;left:50%;top:62px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:8px 14px;border-radius:8px;font-size:13px;z-index:30;display:none;max-width:90vw;box-shadow:var(--shadow)}
+@media(max-width:1780px){.hide-s{display:none}.brand b{display:none}.title{max-width:22vw}}
+@media(max-width:1360px){.title{max-width:15vw}#status{max-width:90px;overflow:hidden;text-overflow:ellipsis}}
+@media(max-width:900px){#status{display:none}}
+@media(max-width:760px){#mapTitle{display:none}}
+@media(prefers-reduced-motion:reduce){#drawer,.tg{transition:none}}
+</style>
+</head>
+<body>
+<div class="bar" role="toolbar" aria-label="Map tools">
+  <div class="brand">
+    <button class="btn icon" id="mapsBtn" title="Your maps" aria-label="Your maps"><svg class="i" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+    <b>StructureMindMap</b><button class="title" id="mapTitle" title="Rename map (click)"></button><span id="status" aria-live="polite"></span>
+  </div>
+  <div class="seg" role="group" aria-label="Layout">
+    <button data-layout="mindmap" aria-pressed="true" title="Branches spread to both sides of the centre">Mind map</button>
+    <button data-layout="tree" aria-pressed="false" title="Left to right tree">Tree</button>
+    <button data-layout="sitemap" aria-pressed="false" title="First level side by side, the rest stacked below">Sitemap</button>
+  </div>
+  <div class="grp">
+    <button class="btn ai" id="expandBtn" title="Claude suggests child ideas for the selected nodes">Expand</button>
+    <button class="btn ai" id="genBtn" title="Claude turns your text into a branch or a map">Generate</button>
+    <button class="btn" id="stageBtn" aria-pressed="true" title="Show or hide the staging area"><svg class="i" viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7" rx="1"/><rect x="13" y="4" width="7" height="7" rx="1"/><rect x="4" y="13" width="7" height="7" rx="1"/></svg><span class="hide-s">Notes</span></button>
+    <button class="btn ai" id="chatBtn" aria-pressed="false" title="Chat with Claude about the map"><svg class="i" viewBox="0 0 24 24"><path d="M5 5h14v10H9l-4 4z"/></svg>Chat</button>
+  </div>
+  <div class="grp">
+    <button class="btn" id="checkBtn" aria-pressed="false" title="Checklist mode: tick nodes off"><svg class="i" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="m8 12 3 3 5-6"/></svg><span class="hide-s">Checklist</span></button>
+    <button class="btn" id="tidyBtn" title="Re-arrange the selected branch neatly"><svg class="i" viewBox="0 0 24 24"><path d="M4 6h7M4 12h11M4 18h16"/></svg><span class="hide-s">Tidy</span></button>
+    <button class="btn" id="colorBtn" title="Node colour"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 0 0 16z" fill="currentColor"/></svg><span class="hide-s">Colour</span></button>
+    <button class="btn icon" id="delBtn" title="Delete (Del)" aria-label="Delete"><svg class="i" viewBox="0 0 24 24"><path d="M5 7h14M10 7V5h4v2M7 7l1 12h8l1-12"/></svg></button>
+    <button class="btn icon" id="undoBtn" title="Undo (Ctrl/Cmd+Z)" aria-label="Undo"><svg class="i" viewBox="0 0 24 24"><path d="M9 7 4 12l5 5"/><path d="M4 12h10a6 6 0 0 1 0 12h-2" transform="translate(0 -6)"/></svg></button>
+    <button class="btn icon" id="redoBtn" title="Redo (Shift+Ctrl/Cmd+Z)" aria-label="Redo"><svg class="i" viewBox="0 0 24 24"><path d="m15 7 5 5-5 5"/><path d="M20 12H10a6 6 0 0 0 0 12h2" transform="translate(0 -6)"/></svg></button>
+    <button class="btn" id="copyBtn" title="Copy the selection, or the whole map, as a nested list"><svg class="i" viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/></svg><span class="hide-s">Copy</span></button>
+    <button class="btn icon" id="helpBtn" title="Shortcuts" aria-label="Shortcuts">?</button>
+  </div>
+</div>
+
+<div id="viewport" tabindex="0" aria-label="Mind map canvas">
+  <aside id="stage" aria-label="Staging area"><header><h2>Staging area</h2><span class="grp"><button class="btn" id="stageAdd" title="Add a note (Enter)">+ Note</button><button class="btn icon" id="stageClose" title="Hide the staging area" aria-label="Hide the staging area">✕</button></span></header><div id="stageHint" class="hint">Raw ideas go here. Click empty space here and paste text, or double-click to add a note. Drag notes onto the map to place them.</div><div id="stageNotes"></div></aside>
+  <div id="world"><svg id="edges"></svg><div id="toggles"></div><div id="dropline"></div></div>
+  <div id="marquee"></div>
+  <div class="float" id="zoombar">
+    <button class="btn icon" id="zoomOut" title="Zoom out" aria-label="Zoom out"><svg class="i" viewBox="0 0 24 24"><path d="M6 12h12"/></svg></button>
+    <button class="z" id="zoomLbl" title="Reset to 100%">100%</button>
+    <button class="btn icon" id="zoomIn" title="Zoom in" aria-label="Zoom in"><svg class="i" viewBox="0 0 24 24"><path d="M6 12h12M12 6v12"/></svg></button>
+    <button class="btn" id="fitBtn" title="Fit map to screen (Shift+1)">Fit</button>
+    <button class="btn" id="centerBtn" title="Center the map (Shift+2)">Center</button>
+  </div>
+  <div class="float" id="review" role="region" aria-label="Claude suggestions">
+    <span id="reviewTxt"></span>
+    <button class="btn ok" id="acceptAll">Accept all</button>
+    <button class="btn" id="rejectAll">Reject all</button>
+  </div>
+  <aside id="chat" aria-label="Chat with Claude">
+    <header><h2>Ask Claude</h2><span class="grp"><button class="btn icon" id="chatPurge" title="Purge chat history" aria-label="Purge chat history"><svg class="i" viewBox="0 0 24 24"><path d="M5 7h14M10 7V5h4v2M7 7l1 12h8l1-12"/></svg></button><button class="btn icon" id="chatClose" title="Close chat" aria-label="Close chat">✕</button></span></header>
+    <div id="scope"></div>
+    <div id="msgs" aria-live="polite"></div>
+    <form id="chatForm"><textarea id="chatIn" rows="3" placeholder="Ask about the map or ask for changes" aria-label="Message to Claude"></textarea>
+      <div class="row"><small>Enter sends, Shift+Enter adds a line</small><button class="btn primary" id="chatSend">Send</button></div></form>
+  </aside>
+  <div id="loading">Loading your maps</div>
+  <aside id="drawer" aria-label="Your maps">
+    <header><h2>Your maps</h2><button class="btn" id="newMapBtn">New map</button></header>
+    <ul id="maplist"></ul>
+    <footer id="storeNote"></footer>
+  </aside>
+</div>
+<div id="palette" role="dialog" aria-label="Node colour"></div>
+<div id="ghost"></div>
+<div id="toast" role="status"></div>
+<div id="tip" role="tooltip"></div>
+
+<dialog id="genDlg">
+  <form method="dialog" id="genForm">
+    <h2>Generate with Claude</h2>
+    <p>Paste notes, an article or a transcript. Claude turns it into a structure, and you review each suggestion before it stays.</p>
+    <textarea id="genText" placeholder="Paste or write your text here" required></textarea>
+    <div>
+      <label><input type="radio" name="tgt" value="branch" id="tgtBranch"> As a branch under the selected node</label>
+      <label><input type="radio" name="tgt" value="map" id="tgtMap"> As a new map</label>
+    </div>
+    <div class="row"><button class="btn" value="cancel" formnovalidate>Cancel</button><button class="btn primary" value="go" id="genGo">Generate</button></div>
+  </form>
+</dialog>
+
+<dialog id="confirmDlg">
+  <form method="dialog">
+    <h2 id="confirmTitle">Delete map?</h2>
+    <p id="confirmText"></p>
+    <div class="row"><button class="btn" value="cancel">Cancel</button><button class="btn primary" value="ok" id="confirmOk">Delete</button></div>
+  </form>
+</dialog>
+
+<dialog id="pasteDlg">
+  <form method="dialog">
+    <h2>Paste into the staging area</h2>
+    <p id="pasteText"></p>
+    <div class="row"><button class="btn" value="cancel">Cancel</button><button class="btn" value="one">One note</button><button class="btn primary" value="lines">One note per line</button></div>
+  </form>
+</dialog>
+
+<dialog id="helpDlg">
+  <form method="dialog">
+    <h2>Shortcuts</h2>
+    <div class="keys">
+      <h3>Adding and editing</h3>
+      <span><kbd>Tab</kbd></span><span>Add a child to the selected node</span>
+      <span><kbd>Enter</kbd></span><span>Add a sibling (or finish editing)</span>
+      <span>Click a selected node</span><span>Edit text with the cursor where you clicked</span>
+      <span>Double-click / <kbd>F2</kbd></span><span>Edit with all text selected; typing also starts editing</span>
+      <span><kbd>Alt/Option+Enter</kbd>, <kbd>Shift+Enter</kbd></span><span>Line break while editing</span>
+      <span><kbd>Del</kbd> / <kbd>Backspace</kbd></span><span>Delete the selected nodes and their children</span>
+      <h3>Selecting and moving</h3>
+      <span><kbd>Shift</kbd>+click, drag on canvas</span><span>Select several nodes</span>
+      <span>Arrow keys</span><span>Move between nodes</span>
+      <span><kbd>Space</kbd></span><span>Collapse or expand the selected branch</span>
+      <span>Drag onto a node</span><span>Make it a child; drop between two siblings to insert it there</span>
+      <h3>Clipboard and history</h3>
+      <span><kbd>Ctrl/Cmd+C</kbd>, <kbd>X</kbd>, <kbd>V</kbd></span><span>Copy, cut and paste as nested lists</span>
+      <span><kbd>Ctrl/Cmd+Z</kbd></span><span>Undo; add <kbd>Shift</kbd> to redo</span>
+      <h3>View</h3>
+      <span>Scroll</span><span>Pan up and down; <kbd>Shift</kbd>+scroll pans sideways</span>
+      <span>Right-button or middle-button drag</span><span>Pan the map</span>
+      <span><kbd>Ctrl/Cmd</kbd>+scroll, pinch</span><span>Zoom</span>
+      <span><kbd>Shift+1</kbd> / <kbd>Shift+2</kbd></span><span>Fit map / center map</span>
+      <span>Layout buttons, Tidy</span><span>Nodes stay put until you ask: a layout button re-arranges the whole map, Tidy the selected branch</span>
+      <h3>Tools</h3>
+      <span>Checklist</span><span>Turn on with the toolbar button; click a box (with several nodes selected, it ticks them all) or press <kbd>Ctrl/Cmd+Enter</kbd>. A parent is done when all its children are; to reopen it, untick a child or add a new one</span>
+      <span>Staging area</span><span>Raw notes left of the map. Select the area and paste, double-click or press Enter to add a note, drag notes onto the map</span>
+      <span>Chat</span><span>Ask Claude about the map. With nodes selected, changes stay in that branch</span>
+    </div>
+    <div class="row"><span id="appVersion" style="margin-right:auto;font-size:12px;color:var(--muted);align-self:center"></span><button class="btn primary" value="ok">Close</button></div>
+  </form>
+</dialog>
+
+<script>
+{
+const $ = s => document.querySelector(s);
+const vp = $('#viewport'), world = $('#world'), edgesSvg = $('#edges'), togglesEl = $('#toggles');
+const PALETTE = [['Default', null], ['Red', '#e5484d'], ['Orange', '#f76b15'], ['Amber', '#d99a1e'], ['Green', '#30a46c'],
+  ['Teal', '#12a594'], ['Blue', '#3e63dd'], ['Violet', '#8e4ec6'], ['Pink', '#d6409f'], ['Gray', '#8b8d98']];
+const PLAIN = (() => { const d = document.createElement('div'); try { d.contentEditable = 'plaintext-only'; return d.contentEditable === 'plaintext-only'; } catch (e) { return false; } })();
+
+let maps = {}, cur = null, sel = [], view = { x: 0, y: 0, z: 1 };
+let pos = {};
+const els = new Map();
+let undoStack = [], redoStack = [];
+let editing = null, editSnap = null, editOrig = '', editNew = false;
+let gesture = null, dragIds = null, dragSet = null, dropT = null;
+let aiBusy = false;
+
+const uid = () => Math.random().toString(36).slice(2, 9) + Date.now().toString(36).slice(-4);
+const N = id => cur.nodes[id];
+const mk = (id, parent, text) => ({ id, parent, children: [], text, color: null, collapsed: false, checked: false, pending: false, x: null, y: null, side: 1 });
+
+function makeMap(title) {
+  const r = 'n' + uid();
+  return { id: 'm' + uid(), v: 1, title, layout: 'mindmap', numbering: false, rootId: r, nodes: { [r]: mk(r, null, title) }, staging: [], created: Date.now(), updated: Date.now() };
+}
+function addNode(parentId, text, index, pending) {
+  const id = 'n' + uid(), p = N(parentId), n = mk(id, parentId, text);
+  n.pending = !!pending; cur.nodes[id] = n;
+  if (index == null || index > p.children.length) p.children.push(id); else p.children.splice(index, 0, id);
+  return id;
+}
+function removeSubtree(id) {
+  const n = N(id); if (!n) return;
+  const p = N(n.parent); if (p) p.children.splice(p.children.indexOf(id), 1);
+  const rec = x => { const m = N(x); if (!m) return; m.children.forEach(rec); delete cur.nodes[x]; };
+  rec(id);
+}
+const okColor = c => typeof c === 'string' && /^#[0-9a-f]{6}$/i.test(c);
+function effColor(id) { let n = N(id); while (n) { if (okColor(n.color)) return n.color; n = N(n.parent); } return null; }
+function isAncestor(a, b) { let n = N(b); while (n && n.parent) { if (n.parent === a) return true; n = N(n.parent); } return false; }
+function preorder() { const out = []; const rec = id => { out.push(id); N(id).children.forEach(rec); }; rec(cur.rootId); return out; }
+function topLevel(ids) {
+  const s = new Set(ids.filter(id => N(id)));
+  const order = preorder(), idx = new Map(order.map((id, i) => [id, i]));
+  return [...s].filter(id => { let n = N(id); while (n.parent) { if (s.has(n.parent)) return false; n = N(n.parent); } return true; })
+    .sort((a, b) => idx.get(a) - idx.get(b));
+}
+function countDesc(id) { let c = 0; const rec = x => N(x).children.forEach(k => { c++; rec(k); }); rec(id); return c; }
+function visibleList() { const out = []; const rec = (id, d) => { out.push([id, d]); const n = N(id); if (!n.collapsed) n.children.forEach(c => rec(c, d + 1)); }; rec(cur.rootId, 0); return out; }
+
+/* ---------- undo ---------- */
+const snapshot = () => JSON.stringify({ rootId: cur.rootId, nodes: cur.nodes, layout: cur.layout, staging: cur.staging || [] });
+function restore(s) { const o = JSON.parse(s); cur.rootId = o.rootId; cur.nodes = o.nodes; cur.layout = o.layout; cur.staging = o.staging || []; }
+function pushUndo(s) { undoStack.push(s); if (undoStack.length > 200) undoStack.shift(); redoStack = []; }
+function commit(fn) { const s = snapshot(); fn(); pushUndo(s); changed(); }
+function changed() { cur.updated = Date.now(); sel = sel.filter(id => N(id)); render(); scheduleSave(); }
+function undo() { if (editing) commitEdit(); if (editingNote) commitNoteEdit(); if (!undoStack.length) return; redoStack.push(snapshot()); restore(undoStack.pop()); changed(); }
+function redo() { if (editing) commitEdit(); if (editingNote) commitNoteEdit(); if (!redoStack.length) return; undoStack.push(snapshot()); restore(redoStack.pop()); changed(); }
+
+/* ---------- render ---------- */
+const GRID = 12, COLGAP = 36, IND = 22;
+const snap = v => Math.round(v / GRID) * GRID, snapUp = v => Math.ceil(v / GRID) * GRID;
+let sz = {}, lay = {}, prevSz = {}, prevVis = new Set(), posChanged = false;
+function rectOf(id) {
+  const n = N(id), s = sz[id]; if (!n || !s || n.x == null) return null;
+  const x = n.side < 0 ? n.x - s.w : n.side === 0 ? n.x - s.w / 2 : n.x;
+  return { x, y: n.y, w: s.w, h: s.h, r: x + s.w, b: n.y + s.h };
+}
+function setRect(id, left, top) { const n = N(id), s = sz[id]; n.x = snap(n.side < 0 ? left + s.w : n.side === 0 ? left + s.w / 2 : left); n.y = snap(top); posChanged = true; }
+function shiftSubtree(id, dx, dy) { if (!dx && !dy) return; const rec = x => { const n = N(x); if (n.x != null) { n.x += dx; n.y += dy; } n.children.forEach(rec); }; rec(id); posChanged = true; }
+function nullPos(id) { const rec = x => { const n = N(x); n.x = null; n.y = null; n.children.forEach(rec); }; rec(id); }
+function union(a, b) { if (!a) return b; if (!b) return a; const x = Math.min(a.x, b.x), y = Math.min(a.y, b.y), r = Math.max(a.r, b.r), bb = Math.max(a.b, b.b); return { x, y, r, b: bb, w: r - x, h: bb - y }; }
+function bbox(id) { let u = null; const rec = x => { const q = rectOf(x); if (!q) return; u = union(u, q); if (!N(x).collapsed) N(x).children.forEach(rec); }; rec(id); return u; }
+const visKids = id => N(id).collapsed ? [] : N(id).children.filter(c => sz[c] && N(c).x != null);
+const hgap = d => d === 0 ? 64 : d === 1 ? 44 : 32;
+const vgap = d => d <= 1 ? 24 : 12;
+
+/* Push later siblings (and their subtrees) out of the way of id's subtree, then repeat one level up. */
+function cascade(id) {
+  let C = id, S = bbox(id); if (!S) return;
+  const sitemap = cur.layout === 'sitemap';
+  while (N(C).parent) {
+    const P = N(C).parent, kids = visKids(P), side = N(C).side, horiz = sitemap && !N(P).parent;
+    for (const L of kids.slice(kids.indexOf(C) + 1)) {
+      if (!sitemap && N(L).side !== side) continue;
+      const B = bbox(L); if (!B) continue;
+      if (horiz) { if (B.x < S.r + 12) shiftSubtree(L, snapUp(S.r + COLGAP - B.x), 0); }
+      else if (B.x < S.r && B.r > S.x && B.y < S.b + 3) shiftSubtree(L, 0, snapUp(S.b + vgap(sz[L].depth) - B.y));
+      S = union(S, bbox(L));
+    }
+    C = P; S = bbox(P);
+  }
+}
+/* Children never sit under a grown parent; then the parent's own block pushes what follows it. */
+function ensureClear(id) {
+  const r = rectOf(id); if (!r) return;
+  const kids = visKids(id);
+  if (kids.length) {
+    if (cur.layout === 'sitemap') {
+      const top = Math.min(...kids.map(k => rectOf(k).y)), need = r.b + (N(id).parent ? 12 : 48) - top;
+      if (top < r.b + (N(id).parent ? 3 : 24)) kids.forEach(k => shiftSubtree(k, 0, snapUp(need)));
+    } else {
+      const R = kids.filter(k => N(k).side > 0), Lk = kids.filter(k => N(k).side < 0);
+      if (R.length) { const need = r.r + 24 - Math.min(...R.map(k => rectOf(k).x)); if (need > 12) R.forEach(k => shiftSubtree(k, snapUp(need), 0)); }
+      if (Lk.length) { const need = Math.max(...Lk.map(k => rectOf(k).r)) - (r.x - 24); if (need > 12) Lk.forEach(k => shiftSubtree(k, -snapUp(need), 0)); }
+    }
+  }
+  cascade(id);
+}
+function pushables(id) {
+  const out = new Set(), sitemap = cur.layout === 'sitemap';
+  let C = id;
+  while (N(C).parent) {
+    const P = N(C).parent, kids = N(P).collapsed ? [] : N(P).children;
+    for (const L of kids.slice(kids.indexOf(C) + 1)) if (sitemap || N(L).side === N(C).side) { const rec = x => { out.add(x); if (!N(x).collapsed) N(x).children.forEach(rec); }; rec(L); }
+    C = P;
+  }
+  return out;
+}
+/* Place a node that has no position yet, next to its siblings, without moving anything above or beside it. */
+function placeNew(id) {
+  const n = N(id), P = N(n.parent), pr = rectOf(P.id), s = sz[id], d = s.depth;
+  if (!pr) return;
+  const kids = P.children, idx = kids.indexOf(id);
+  const placed = c => c !== id && sz[c] && N(c).x != null;
+  if (cur.layout === 'sitemap') {
+    n.side = 1;
+    const prev = kids.slice(0, idx).reverse().find(placed), next = kids.slice(idx + 1).find(placed);
+    let left, top;
+    if (!P.parent) {
+      if (prev) { left = bbox(prev).r + COLGAP; top = rectOf(prev).y; }
+      else if (next) { const q = rectOf(next); left = q.x; top = q.y; }
+      else { left = pr.x + pr.w / 2 - s.w / 2; top = pr.b + 48; }
+    } else {
+      if (prev) { left = rectOf(prev).x; top = bbox(prev).b + vgap(d); }
+      else if (next) { const q = rectOf(next); left = q.x; top = q.y; }
+      else { left = pr.x + IND; top = pr.b + vgap(d); }
+    }
+    setRect(id, left, top); n.y = snapUp(top);
+  } else {
+    if (!P.parent && cur.layout === 'mindmap') {
+      const nx = kids.slice(idx + 1).find(placed);
+      if (n._side) n.side = n._side;
+      else if (nx) n.side = N(nx).side;
+      else { const sides = kids.filter(placed).map(c => N(c).side); n.side = sides.filter(v => v > 0).length <= sides.filter(v => v < 0).length ? 1 : -1; }
+    } else n.side = P.parent ? (P.side < 0 ? -1 : 1) : 1;
+    const same = c => placed(c) && N(c).side === n.side;
+    const prev = kids.slice(0, idx).reverse().find(same), next = kids.slice(idx + 1).find(same);
+    if (prev) { n.x = N(prev).x; n.y = snapUp(bbox(prev).b + vgap(d)); }
+    else if (next) { n.x = N(next).x; n.y = N(next).y; }
+    else { n.x = snap(n.side > 0 ? pr.r + hgap(d - 1) : pr.x - hgap(d - 1)); n.y = snap(pr.y + pr.h / 2 - s.h / 2); }
+    posChanged = true;
+  }
+  delete n._side;
+  // Step down past anything that cannot be pushed (nodes above or beside), then push what follows.
+  const push = pushables(id), anc = new Set(); let a = n.parent; while (a) { anc.add(a); a = N(a).parent; }
+  for (let k = 0; k < 400; k++) {
+    const r = rectOf(id); let hit = null;
+    for (const o in sz) {
+      if (o === id || push.has(o) || anc.has(o)) continue;
+      const q = rectOf(o); if (!q) continue;
+      if (q.x < r.r + 8 && q.r > r.x - 8 && q.y < r.b + 6 && q.b > r.y - 6) { hit = q; break; }
+    }
+    if (!hit) break;
+    n.y = snapUp(hit.b + vgap(d));
+  }
+  cascade(id);
+}
+
+function render() {
+  if (!cur) return;
+  const vis = visibleList(), visSet = new Set(vis.map(v => v[0]));
+  for (const [id, el] of els) if (!visSet.has(id)) { el.remove(); els.delete(id); }
+  const selSet = new Set(sel), subSet = new Set();
+  sel.forEach(id => { if (N(id)) { const rec = x => N(x).children.forEach(c => { if (!selSet.has(c)) subSet.add(c); rec(c); }); rec(id); } });
+  const ckMemo = new Map();
+  $('#checkBtn').setAttribute('aria-pressed', String(!!cur.checklist));
+  for (const [id, d] of vis) {
+    let el = els.get(id);
+    if (!el) { el = document.createElement('div'); el.dataset.id = id; el.innerHTML = '<span class="t"></span>'; world.appendChild(el); els.set(id, el); }
+    const n = N(id), t = el.firstChild;
+    const shown = n.sug && n.sug.text && editing !== id ? n.sug.text : n.text;
+    if (editing !== id && t.textContent !== shown) t.textContent = shown;
+    el.className = 'node ' + (d === 0 ? 'd0' : d === 1 ? 'd1' : d === 2 ? 'd2' : 'dl') + (selSet.has(id) ? ' sel' : '') + (subSet.has(id) ? ' sub' : '') +
+      (n.pending ? ' pending' : '') + (n.sug ? (n.sug.remove ? ' sug-del' : n.sug.text ? ' sug-edit' : '') + (n.sug.move ? ' sug-move' : '') : '') + (editing === id ? ' editing' : '') + (dragSet && dragSet.has(id) ? ' dragging' : '') + (dropT && dropT.type === 'child' && dropT.id === id ? ' drop' : '');
+    const ckOn = !!cur.checklist, done = ckOn && isChecked(id, ckMemo);
+    el.classList.toggle('ckl', ckOn); el.classList.toggle('done', done);
+    let ck = el.querySelector('.ck'), prog = el.querySelector('.prog');
+    if (ckOn) {
+      if (!ck) { ck = document.createElement('button'); ck.className = 'ck'; ck.type = 'button'; el.appendChild(ck); }
+      const locked = done && N(id).children.some(c => !N(c).pending);
+      ck.classList.toggle('on', done); ck.classList.toggle('locked', locked);
+      ck.setAttribute('aria-label', locked ? 'Done: all children are done' : done ? 'Mark as not done' : 'Mark as done'); ck.title = ck.getAttribute('aria-label');
+      const lv = leafCount(id, ckMemo);
+      const pt = lv && lv.total && N(id).children.length ? `${lv.done}/${lv.total}` : '';
+      if (pt) { if (!prog) { prog = document.createElement('span'); prog.className = 'prog'; t.after(prog); } prog.textContent = pt; } else if (prog) prog.remove();
+    } else { if (ck) ck.remove(); if (prog) prog.remove(); }
+    const c = effColor(id);
+    el.style.setProperty('--c', c || (d === 0 ? 'var(--ink)' : 'var(--line)'));
+    el.style.setProperty('--on', c ? '#fff' : 'var(--bg)');
+    let acts = el.querySelector('.acts');
+    const noteText = n.sug && editing !== id ? [n.sug.text ? 'Was: ' + n.text.slice(0, 60) : '', n.sug.move && N(n.sug.move.parent) ? 'Move to: ' + N(n.sug.move.parent).text.slice(0, 40) : '', n.sug.remove ? 'Remove with its branch' : ''].filter(Boolean).join(' · ') : '';
+    let note = el.querySelector('.note');
+    if (noteText) { if (!note) { note = document.createElement('span'); note.className = 'note'; el.insertBefore(note, el.querySelector('.acts')); } note.textContent = noteText; } else if (note) note.remove();
+    if (hasSug(n) && editing !== id) { if (!acts) { acts = document.createElement('span'); acts.className = 'acts'; acts.innerHTML = '<button data-a="ok" title="Keep this suggestion" aria-label="Keep">✓</button><button data-a="no" title="Remove this suggestion" aria-label="Remove">✕</button>'; el.appendChild(acts); } }
+    else if (acts) acts.remove();
+  }
+  sz = {};
+  for (const [id, d] of vis) { const el = els.get(id); sz[id] = { w: el.offsetWidth, h: el.offsetHeight, depth: d }; }
+  posChanged = false;
+  if (N(cur.rootId).x == null) fullLayout();
+  else {
+    for (const [id] of vis) if (N(id).x == null) placeNew(id);
+    const check = new Set();
+    for (const [id] of vis) {
+      const p = prevSz[id]; if (p && (p.w !== sz[id].w || p.h !== sz[id].h)) check.add(id);
+      const par = N(id).parent; if (prevVis.size && !prevVis.has(id) && par && prevVis.has(par)) check.add(par);
+    }
+    check.forEach(ensureClear);
+  }
+  prevSz = sz; prevVis = visSet;
+  pos = {};
+  for (const [id, d] of vis) { const q = rectOf(id); pos[id] = { x: q.x, y: q.y, w: q.w, h: q.h, depth: d, dir: N(id).side }; els.get(id).style.transform = `translate(${q.x}px,${q.y}px)`; }
+  drawEdges(vis); drawToggles(vis); renderStage(); updateUI();
+  if (posChanged) { posChanged = false; scheduleSave(); }
+}
+
+/* ---------- automatic arrangement (only when the user asks for it) ---------- */
+function block(id) {
+  const p = lay[id], n = N(id);
+  if (n.collapsed || !n.children.length) { p.bh = p.h; p.ch = 0; return p.h; }
+  let s = 0; n.children.forEach((c, i) => { s += block(c) + (i ? vgap(p.depth + 1) : 0); });
+  p.ch = s; p.bh = Math.max(p.h, s); return p.bh;
+}
+function placeTree(id, xEdge, yTop, dir) {
+  const p = lay[id], n = N(id); p.dir = dir;
+  p.y = yTop + (p.bh - p.h) / 2; p.x = dir > 0 ? xEdge : xEdge - p.w;
+  if (n.collapsed || !n.children.length) return;
+  let y = yTop + (p.bh - p.ch) / 2;
+  const cx = dir > 0 ? p.x + p.w + hgap(p.depth) : p.x - hgap(p.depth);
+  for (const c of n.children) { placeTree(c, cx, y, dir); y += lay[c].bh + vgap(p.depth + 1); }
+}
+function layoutTree() { const r = cur.rootId; block(r); placeTree(r, 0, -lay[r].bh / 2, 1); }
+function layoutMindmap() {
+  const r = cur.rootId, p = lay[r], n = N(r);
+  p.x = -p.w / 2; p.y = -p.h / 2; p.dir = 0;
+  const kids = n.collapsed ? [] : n.children; kids.forEach(block);
+  const total = kids.reduce((s, c) => s + lay[c].bh, 0);
+  let acc = 0; const right = [], left = [];
+  for (const c of kids) { if (!right.length || acc + lay[c].bh / 2 <= total / 2) { right.push(c); acc += lay[c].bh; } else left.push(c); }
+  const stack = (arr, dir) => {
+    const H = arr.reduce((s, c, i) => s + lay[c].bh + (i ? vgap(1) : 0), 0);
+    let y = -H / 2; const x = dir > 0 ? p.x + p.w + hgap(0) : p.x - hgap(0);
+    for (const c of arr) { placeTree(c, x, y, dir); y += lay[c].bh + vgap(1); }
+  };
+  stack(right, 1); stack(left, -1);
+}
+function layoutSitemap() {
+  const r = cur.rootId, p = lay[r], n = N(r);
+  p.y = 0;
+  const kids = n.collapsed ? [] : n.children, rowY = p.h + 48;
+  const cols = kids.map(k => {
+    const items = []; const rec = (id, l) => { const m = N(id); if (m.collapsed) return; for (const c of m.children) { items.push([c, l]); rec(c, l + 1); } };
+    rec(k, 1);
+    let w = lay[k].w; for (const [c, l] of items) w = Math.max(w, l * IND + lay[c].w + 26);
+    return { k, items, w };
+  });
+  const total = cols.reduce((s, c, i) => s + c.w + (i ? COLGAP : 0), 0);
+  p.x = -p.w / 2; let x = -total / 2;
+  for (const col of cols) {
+    const kp = lay[col.k]; kp.x = x; kp.y = rowY;
+    let y = rowY + kp.h + 16;
+    for (const [c, l] of col.items) { const cp = lay[c]; cp.x = x + l * IND; cp.y = y; y += cp.h + 12; }
+    x += col.w + COLGAP;
+  }
+}
+function fullLayout() {
+  lay = {};
+  for (const id in sz) lay[id] = { w: sz[id].w, h: snapUp(sz[id].h), depth: sz[id].depth, x: 0, y: 0, dir: 1 };
+  if (cur.layout === 'tree') layoutTree(); else if (cur.layout === 'sitemap') layoutSitemap(); else layoutMindmap();
+  for (const id in cur.nodes) if (!lay[id]) { cur.nodes[id].x = null; cur.nodes[id].y = null; }
+  for (const id in lay) {
+    const n = N(id), p = lay[id];
+    n.side = cur.layout === 'sitemap' ? (n.parent ? 1 : 0) : !n.parent ? (cur.layout === 'tree' ? 1 : 0) : (p.dir < 0 ? -1 : 1);
+    setRect(id, p.x, p.y);
+  }
+  posChanged = true;
+}
+/* Re-arrange one branch below a node that stays where it is. */
+function tidy(id) {
+  const n = N(id); if (!n || !sz[id]) return;
+  if (!n.parent) { n.x = null; return; }
+  const r0 = rectOf(id);
+  const sub = []; const rec = (x, d) => { if (sz[x]) sub.push(x); if (!N(x).collapsed) N(x).children.forEach(c => rec(c, d + 1)); else N(x).children.forEach(nullPos); }; rec(id, 0);
+  if (cur.layout === 'sitemap') {
+    let y = r0.b + 12;
+    const walk = (p, l) => { if (N(p).collapsed) return; for (const c of N(p).children) { if (!sz[c]) continue; N(c).side = 1; setRect(c, r0.x + l * IND, y); y = N(c).y + sz[c].h + 12; walk(c, l + 1); } };
+    walk(id, N(id).parent === cur.rootId ? 1 : 1);
+  } else {
+    lay = {}; sub.forEach(x => { lay[x] = { w: sz[x].w, h: snapUp(sz[x].h), depth: sz[x].depth, x: 0, y: 0, dir: 1 }; });
+    const dir = n.side < 0 ? -1 : 1; block(id); placeTree(id, 0, 0, dir);
+    const dx = r0.x - lay[id].x, dy = r0.y - lay[id].y;
+    sub.forEach(x => { if (x === id) return; N(x).side = dir; setRect(x, lay[x].x + dx, lay[x].y + dy); });
+  }
+  ensureClear(id);
+}
+
+function drawEdges(vis) {
+  let out = '';
+  const sitemap = cur.layout === 'sitemap';
+  for (const [id] of vis) {
+    const n = N(id); if (!n.parent) continue;
+    const pp = pos[n.parent], cp = pos[id];
+    const col = effColor(n.parent) || 'var(--line)';
+    const sw = pp.depth === 0 ? 2.2 : pp.depth === 1 ? 1.8 : 1.4;
+    let d;
+    if (sitemap) {
+      if (pp.depth === 0) {
+        const x1 = pp.x + pp.w / 2, y1 = pp.y + pp.h, x2 = cp.x + cp.w / 2, y2 = cp.y, my = y1 + (y2 - y1) / 2;
+        d = `M${x1} ${y1}V${my}H${x2}V${y2}`;
+      } else {
+        const x1 = pp.x + (pp.depth === 1 ? 12 : 9), y1 = pp.y + pp.h, y2 = cp.depth >= 3 ? cp.y + cp.h - 0.75 : cp.y + cp.h / 2;
+        d = `M${x1} ${y1}V${y2}H${cp.x}`;
+      }
+    } else {
+      const dir = cp.dir < 0 ? -1 : 1;
+      const px = dir > 0 ? pp.x + pp.w : pp.x, py = pp.depth >= 3 ? pp.y + pp.h - 0.75 : pp.y + pp.h / 2;
+      const cx = dir > 0 ? cp.x : cp.x + cp.w, cy = cp.depth >= 3 ? cp.y + cp.h - 0.75 : cp.y + cp.h / 2;
+      const dx = (cx - px) * 0.5;
+      d = `M${px} ${py}C${px + dx} ${py} ${cx - dx} ${cy} ${cx} ${cy}`;
+    }
+    out += `<path d="${d}" stroke="${col}" stroke-width="${sw}"${n.pending ? ' stroke-dasharray="4 4"' : ''}/>`;
+  }
+  edgesSvg.innerHTML = out;
+}
+function drawToggles(vis) {
+  let out = '';
+  const selSet = new Set(sel), sitemap = cur.layout === 'sitemap';
+  for (const [id] of vis) {
+    const n = N(id); if (!n.parent || !n.children.length) continue;
+    const p = pos[id]; let x, y;
+    const ay = p.depth >= 3 ? p.y + p.h - 9 : p.y + p.h / 2 - 9;
+    if (sitemap && p.depth === 1) { x = p.x + p.w / 2 - 9; y = p.y + p.h + 3; }
+    else if (sitemap || p.dir > 0) { x = p.x + p.w + 4; y = ay; }
+    else { x = p.x - 22; y = ay; }
+    const label = n.collapsed ? String(countDesc(id)) : '−';
+    out += `<button class="tg${n.collapsed ? ' closed' : ''}${selSet.has(id) ? ' show' : ''}" data-id="${id}" style="transform:translate(${x}px,${y}px)" title="${n.collapsed ? 'Expand' : 'Collapse'}" aria-label="${n.collapsed ? 'Expand' : 'Collapse'}">${label}</button>`;
+  }
+  togglesEl.innerHTML = out;
+}
+
+/* ---------- view ---------- */
+function applyView() { world.style.transform = `translate(${view.x}px,${view.y}px) scale(${view.z})`; $('#zoomLbl').textContent = Math.round(view.z * 100) + '%'; }
+function toWorld(cx, cy) { const r = vp.getBoundingClientRect(); return { x: (cx - r.left - view.x) / view.z, y: (cy - r.top - view.y) / view.z }; }
+function zoomAt(sx, sy, f) { const nz = Math.min(3, Math.max(0.1, view.z * f)); view.x = sx - (sx - view.x) * (nz / view.z); view.y = sy - (sy - view.y) * (nz / view.z); view.z = nz; applyView(); }
+function bounds() { let a = Infinity, b = Infinity, c = -Infinity, d = -Infinity; for (const id in pos) { const p = pos[id]; a = Math.min(a, p.x); b = Math.min(b, p.y); c = Math.max(c, p.x + p.w); d = Math.max(d, p.y + p.h); } return { x: a, y: b, w: c - a, h: d - b }; }
+function area() { const W = vp.clientWidth, l = vp.classList.contains('stage-open') ? $('#stage').offsetWidth : 0, r = vp.classList.contains('chat-open') ? $('#chat').offsetWidth : 0; return { l, r, w: Math.max(120, W - l - r) }; }
+function fit() { const b = bounds(), a = area(), H = vp.clientHeight; if (!isFinite(b.x)) return; view.z = Math.max(0.1, Math.min(1, (a.w - 80) / b.w, (H - 110) / b.h)); view.x = a.l + a.w / 2 - (b.x + b.w / 2) * view.z; view.y = (H - 30) / 2 - (b.y + b.h / 2) * view.z; applyView(); }
+function center() { const b = bounds(), a = area(), H = vp.clientHeight; if (!isFinite(b.x)) return; view.x = a.l + a.w / 2 - (b.x + b.w / 2) * view.z; view.y = (H - 30) / 2 - (b.y + b.h / 2) * view.z; applyView(); }
+function ensureVisible(id) {
+  const p = pos[id]; if (!p) return; const a = area(), H = vp.clientHeight, m = 40, L = a.l + m, R = a.l + a.w - m;
+  const sx = p.x * view.z + view.x, sy = p.y * view.z + view.y, sw = p.w * view.z, sh = p.h * view.z;
+  if (sx < L) view.x += L - sx; else if (sx + sw > R) view.x -= sx + sw - R;
+  if (sy < m) view.y += m - sy; else if (sy + sh > H - 70) view.y -= sy + sh - (H - 70);
+  applyView();
+}
+
+/* ---------- UI state ---------- */
+function updateUI() {
+  document.querySelectorAll('.seg button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.layout === cur.layout)));
+  if (!renaming) $('#mapTitle').textContent = mapName(cur);
+  $('#undoBtn').disabled = !undoStack.length; $('#redoBtn').disabled = !redoStack.length;
+  $('#delBtn').disabled = !sel.some(id => id !== cur.rootId) && !noteSel.size;
+  $('#colorBtn').disabled = !sel.length;
+  $('#tidyBtn').disabled = !sel.some(id => N(id) && N(id).children.length);
+  $('#expandBtn').disabled = aiBusy || !sel.length;
+  $('#genBtn').disabled = aiBusy;
+  const pend = Object.values(cur.nodes).filter(n => n.pending || n.sug).length;
+  if (vp.classList.contains('chat-open')) renderScope();
+  $('#review').style.display = pend ? 'flex' : 'none';
+  $('#reviewTxt').textContent = pend === 1 ? '1 suggestion from Claude' : `${pend} suggestions from Claude`;
+}
+let toastT;
+function toast(msg) { const t = $('#toast'); t.textContent = msg; t.style.display = 'block'; clearTimeout(toastT); toastT = setTimeout(() => t.style.display = 'none', 3200); }
+
+/* ---------- editing ---------- */
+function caretAt(x, y, t) {
+  let r = null;
+  if (document.caretRangeFromPoint) r = document.caretRangeFromPoint(x, y);
+  else if (document.caretPositionFromPoint) { const p = document.caretPositionFromPoint(x, y); if (p) { r = document.createRange(); r.setStart(p.offsetNode, p.offset); r.collapse(true); } }
+  return r && t.contains(r.startContainer) ? r : null;
+}
+function selectAllText(id) { const el = els.get(id); if (!el) return; const r = document.createRange(); r.selectNodeContents(el.firstChild); const s = getSelection(); s.removeAllRanges(); s.addRange(r); }
+function startEdit(id, initial, opts) {
+  if (editing) commitEdit();
+  if (!N(id)) return;
+  if (!editSnap) editSnap = snapshot();
+  if (N(id).sug) { if (N(id).sug.text) N(id).text = N(id).sug.text; delete N(id).sug; }
+  editing = id; editOrig = N(id).text; sel = [id]; render();
+  const el = els.get(id); if (!el) { editing = null; return; }
+  const t = el.firstChild;
+  t.contentEditable = PLAIN ? 'plaintext-only' : 'true';
+  if (initial !== undefined) t.textContent = initial;
+  t.focus();
+  let r = opts && opts.point ? caretAt(opts.point.x, opts.point.y, t) : null;
+  if (!r) { r = document.createRange(); r.selectNodeContents(t); if (!(opts && opts.selectAll) && (initial !== undefined || !editNew)) r.collapse(false); }
+  const s = getSelection(); s.removeAllRanges(); s.addRange(r);
+  ensureVisible(id);
+}
+function commitEdit(cancel) {
+  if (!editing) return;
+  const id = editing, el = els.get(id), t = el && el.firstChild;
+  let txt = t ? t.innerText.replace(/​/g, '').replace(/\r/g, '').replace(/^\n+|\n+$/g, '') : '';
+  txt = txt.split('\n').map(l => l.trimEnd()).join('\n').trim();
+  editing = null; if (t) { t.contentEditable = 'false'; t.blur(); }
+  const n = N(id); const snap = editSnap; editSnap = null; const wasNew = editNew; editNew = false;
+  if (!n) { render(); return; }
+  if (cancel || !txt) {
+    restore(snap);
+    if (wasNew) { sel = [N(id) ? id : (n.parent && N(n.parent) ? n.parent : cur.rootId)]; sel = sel.filter(x => N(x)); }
+    render(); return;
+  }
+  N(id).text = txt;
+  render();
+  if (txt !== editOrig || wasNew || snapshot() !== snap) { pushUndo(snap); cur.updated = Date.now(); scheduleSave(); }
+  render(); refreshMapList();
+}
+function addAndEdit(parentId, index, sideHint) {
+  if (editing) commitEdit();
+  editSnap = snapshot(); editNew = true;
+  const id = addNode(parentId, '', index, false);
+  if (sideHint) N(id)._side = sideHint;
+  N(parentId).collapsed = false;
+  startEdit(id);
+}
+world.addEventListener('keydown', e => {
+  if (!editing) return;
+  e.stopPropagation();
+  if (e.key === 'Enter' && e.altKey && !e.isComposing) {
+    e.preventDefault();
+    if (!document.execCommand(PLAIN ? 'insertText' : 'insertLineBreak', false, '\n')) document.execCommand('insertText', false, '\n');
+    return;
+  }
+  if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); commitEdit(); vp.focus({ preventScroll: true }); }
+  else if (e.key === 'Escape') { e.preventDefault(); commitEdit(true); vp.focus({ preventScroll: true }); }
+  else if (e.key === 'Tab') { e.preventDefault(); const id = editing; commitEdit(); if (N(id)) addAndEdit(id); }
+});
+world.addEventListener('input', () => { if (editing) { const t = els.get(editing).firstChild; N(editing).text = t.innerText.replace(/​/g, ''); renderKeepCaret(); } });
+function renderKeepCaret() { const s = getSelection(); const r = s.rangeCount ? s.getRangeAt(0) : null; render(); if (r) { s.removeAllRanges(); s.addRange(r); } }
+world.addEventListener('focusout', e => { if (editing && e.target.closest && e.target.closest('.node') === els.get(editing)) setTimeout(() => { if (editing && !els.get(editing)?.contains(document.activeElement)) commitEdit(); }, 0); });
+
+/* ---------- pointer ---------- */
+let focusArea = 'map';
+function setSel(ids) { sel = ids; if (ids.length) { focusArea = 'map'; stageSelected = false; } render(); }
+vp.addEventListener('pointerdown', e => {
+  if (e.target.closest('#zoombar,#review,#drawer,#loading,#chat')) return;
+  closePalette();
+  const ckb = e.target.closest('.ck');
+  if (ckb) { e.preventDefault(); e.stopPropagation(); const cid = ckb.closest('.node').dataset.id; toggleCheck(sel.length > 1 && sel.includes(cid) ? sel : [cid]); return; }
+  const tg = e.target.closest('.tg');
+  if (tg) { e.preventDefault(); const id = tg.dataset.id; commit(() => { N(id).collapsed = !N(id).collapsed; }); return; }
+  const act = e.target.closest('.acts button');
+  if (act) { e.preventDefault(); e.stopPropagation(); reviewOne(act.closest('.node').dataset.id, act.dataset.a === 'ok'); return; }
+  if (e.button === 1 || e.button === 2) { e.preventDefault(); if (editing) commitEdit(); gesture = { type: 'pan', lx: e.clientX, ly: e.clientY }; vp.classList.add('panning'); vp.setPointerCapture(e.pointerId); return; }
+  if (e.button !== 0) return;
+  if (e.target.closest('#stage button')) return;
+  const noteEl = e.target.closest('.snote');
+  if (noteEl) {
+    const id = noteEl.dataset.note;
+    if (editingNote === id) return;
+    if (editing) commitEdit(); if (editingNote) commitNoteEdit();
+    const wasOnly = noteSel.size === 1 && noteSel.has(id);
+    if (e.shiftKey) { const s = new Set(noteSel); s.has(id) ? s.delete(id) : s.add(id); selectNotes([...s]); } else if (!noteSel.has(id)) selectNotes([id]);
+    gesture = { type: 'npress', id, sx: e.clientX, sy: e.clientY, shift: e.shiftKey, wasOnly };
+    vp.setPointerCapture(e.pointerId); vp.focus({ preventScroll: true }); e.preventDefault(); return;
+  }
+  if (e.target.closest('#stage')) { if (editingNote) commitNoteEdit(); selectStage(); vp.focus({ preventScroll: true }); e.preventDefault(); return; }
+  if (editingNote) commitNoteEdit();
+  const nodeEl = e.target.closest('.node');
+  if (nodeEl) {
+    const id = nodeEl.dataset.id;
+    if (editing === id) return;
+    if (editing) commitEdit();
+    const wasOnly = sel.length === 1 && sel[0] === id;
+    if (e.shiftKey) { setSel(sel.includes(id) ? sel.filter(x => x !== id) : [...sel, id]); }
+    else if (!sel.includes(id)) setSel([id]);
+    gesture = { type: 'press', id, sx: e.clientX, sy: e.clientY, shift: e.shiftKey, wasOnly };
+    vp.setPointerCapture(e.pointerId); vp.focus({ preventScroll: true }); e.preventDefault(); return;
+  }
+  if (editing) commitEdit();
+  vp.focus({ preventScroll: true });
+  const base = e.shiftKey ? [...sel] : [];
+  if (!e.shiftKey) { clearStageSel(); focusArea = 'map'; setSel([]); }
+  gesture = { type: 'marquee', sx: e.clientX, sy: e.clientY, base };
+  vp.setPointerCapture(e.pointerId); e.preventDefault();
+});
+let raf = 0;
+vp.addEventListener('pointermove', e => {
+  if (!gesture) return;
+  if (gesture.type === 'pan') { view.x += e.clientX - gesture.lx; view.y += e.clientY - gesture.ly; gesture.lx = e.clientX; gesture.ly = e.clientY; applyView(); return; }
+  if (gesture.type === 'press') {
+    if (Math.hypot(e.clientX - gesture.sx, e.clientY - gesture.sy) < 5) return;
+    if (!sel.includes(gesture.id)) { gesture = null; return; }
+    const ids = topLevel(sel).filter(id => id !== cur.rootId);
+    if (!ids.length) { gesture = null; return; }
+    dragIds = ids; dragSet = new Set(); ids.forEach(id => { const rec = x => { dragSet.add(x); N(x).children.forEach(rec); }; rec(id); });
+    gesture.type = 'drag';
+    const g = $('#ghost'); g.textContent = ids.length === 1 ? (N(ids[0]).text || 'Node').slice(0, 40) : `${ids.length} branches`; g.style.display = 'block';
+    render();
+  }
+  if (gesture.type === 'npress') {
+    if (Math.hypot(e.clientX - gesture.sx, e.clientY - gesture.sy) < 5) return;
+    if (!noteSel.has(gesture.id)) { gesture = null; return; }
+    const order = notes().map(n => n.id); dragNotes = [...noteSel].sort((a, b) => order.indexOf(a) - order.indexOf(b)); dragSet = new Set();
+    gesture.type = 'ndrag';
+    const g = $('#ghost'); g.textContent = dragNotes.length === 1 ? (noteById(dragNotes[0]).text || 'Note').slice(0, 40) : `${dragNotes.length} notes`; g.style.display = 'block';
+    render();
+  }
+  if (gesture.type === 'drag' || gesture.type === 'ndrag') {
+    $('#ghost').style.transform = `translate(${e.clientX + 14}px,${e.clientY + 12}px)`;
+    const w = toWorld(e.clientX, e.clientY), t = findDrop(w.x, w.y);
+    if (JSON.stringify(t) !== JSON.stringify(dropT)) { dropT = t; render(); showDropLine(); }
+    return;
+  }
+  if (gesture.type === 'marquee') {
+    gesture.ex = e.clientX; gesture.ey = e.clientY;
+    if (!raf) raf = requestAnimationFrame(() => { raf = 0; if (gesture && gesture.type === 'marquee') marquee(); });
+  }
+});
+function marquee() {
+  const r = vp.getBoundingClientRect(), g = gesture, m = $('#marquee');
+  const x1 = Math.min(g.sx, g.ex), y1 = Math.min(g.sy, g.ey), x2 = Math.max(g.sx, g.ex), y2 = Math.max(g.sy, g.ey);
+  m.style.display = 'block'; m.style.left = (x1 - r.left) + 'px'; m.style.top = (y1 - r.top) + 'px'; m.style.width = (x2 - x1) + 'px'; m.style.height = (y2 - y1) + 'px';
+  const a = toWorld(x1, y1), b = toWorld(x2, y2), hits = [];
+  for (const id in pos) { const p = pos[id]; if (p.x < b.x && p.x + p.w > a.x && p.y < b.y && p.y + p.h > a.y) hits.push(id); }
+  const s = [...g.base]; hits.forEach(id => { if (!s.includes(id)) s.push(id); });
+  if (s.join() !== sel.join()) setSel(s);
+}
+function endGesture(e) {
+  if (!gesture) return;
+  const g = gesture; gesture = null;
+  vp.classList.remove('panning');
+  if (g.type === 'drag') {
+    $('#ghost').style.display = 'none'; const t = dropT, ids = dragIds;
+    dropT = null; dragIds = null; dragSet = null; $('#dropline').style.display = 'none';
+    if (t) applyDrop(t, ids); else render();
+  } else if (g.type === 'ndrag') {
+    $('#ghost').style.display = 'none'; const t = dropT, ids = dragNotes;
+    dropT = null; dragNotes = null; dragSet = null; $('#dropline').style.display = 'none';
+    if (t) applyNoteDrop(t, ids); else render();
+  } else if (g.type === 'npress' && !g.shift && e && e.type === 'pointerup') {
+    if (g.wasOnly && noteById(g.id)) startNoteEdit(g.id, { point: { x: e.clientX, y: e.clientY } });
+    else if (noteSel.size > 1) selectNotes([g.id]);
+  } else if (g.type === 'marquee') { $('#marquee').style.display = 'none'; }
+  else if (g.type === 'press' && !g.shift && e && e.type === 'pointerup') {
+    if (g.wasOnly && N(g.id)) startEdit(g.id, undefined, { point: { x: e.clientX, y: e.clientY } });
+    else if (sel.length > 1) setSel([g.id]);
+  }
+}
+vp.addEventListener('pointerup', endGesture);
+vp.addEventListener('contextmenu', e => { if (!e.target.closest('#drawer,#chat,#stage')) e.preventDefault(); });
+vp.addEventListener('pointercancel', endGesture);
+vp.addEventListener('dblclick', e => {
+  const hit = document.elementFromPoint(e.clientX, e.clientY);
+  const sn = hit && hit.closest('.snote');
+  if (sn && !hit.closest('.na')) { const id = sn.dataset.note; if (editingNote === id) { e.preventDefault(); const r = document.createRange(); r.selectNodeContents(sn.firstChild); const s = getSelection(); s.removeAllRanges(); s.addRange(r); } else startNoteEdit(id, { selectAll: true }); return; }
+  if (hit && hit.closest('#stage') && !hit.closest('button,.snote')) { addNoteAndEdit(); return; }
+  const n = hit && hit.closest('.node'); if (!n || hit.closest('.acts,.ck')) return;
+  const id = n.dataset.id;
+  if (editing === id) { e.preventDefault(); selectAllText(id); } else startEdit(id, undefined, { selectAll: true });
+});
+
+function stackSibs(id) {
+  const n = N(id), P = N(n.parent), sm = cur.layout === 'sitemap';
+  return P.children.filter(c => pos[c] && !dragSet.has(c) && (sm || N(c).side === n.side));
+}
+function findDrop(wx, wy) {
+  const root = cur.rootId, sm = cur.layout === 'sitemap';
+  let hit = null;
+  for (const id in pos) { if (dragSet.has(id)) continue; const p = pos[id]; if (wx >= p.x - 4 && wx <= p.x + p.w + 4 && wy >= p.y - 4 && wy <= p.y + p.h + 4) { hit = id; break; } }
+  if (hit) {
+    if (hit === root) return { type: 'child', id: hit };
+    const p = pos[hit], horiz = sm && p.depth === 1;
+    const f = horiz ? (wx - p.x) / p.w : (wy - p.y) / p.h;
+    if (f >= 0.3 && f <= 0.7) return { type: 'child', id: hit };
+    const s = stackSibs(hit), i = s.indexOf(hit), par = N(hit).parent;
+    return f < 0.3 ? { type: 'between', parent: par, a: s[i - 1] || null, b: hit } : { type: 'between', parent: par, a: hit, b: s[i + 1] || null };
+  }
+  for (const id in pos) {
+    if (id === root || dragSet.has(id)) continue;
+    const s = stackSibs(id), nx = s[s.indexOf(id) + 1]; if (!nx) continue;
+    const a = pos[id], b = pos[nx];
+    if (sm && a.depth === 1) { if (wx > a.x + a.w && wx < b.x && wy > Math.min(a.y, b.y) - 10 && wy < Math.max(a.y + a.h, b.y + b.h) + 10) return { type: 'between', parent: N(id).parent, a: id, b: nx }; }
+    else if (wy > a.y + a.h && wy < b.y && wx > Math.min(a.x, b.x) - 10 && wx < Math.max(a.x + a.w, b.x + b.w) + 10) return { type: 'between', parent: N(id).parent, a: id, b: nx };
+  }
+  return null;
+}
+function showDropLine() {
+  const l = $('#dropline');
+  if (!dropT || dropT.type === 'child') { l.style.display = 'none'; return; }
+  const a = dropT.a && pos[dropT.a], b = dropT.b && pos[dropT.b], ref = a || b;
+  const horiz = cur.layout === 'sitemap' && ref.depth === 1;
+  l.style.display = 'block';
+  if (horiz) {
+    const x = a && b ? (a.x + a.w + b.x) / 2 - 1.5 : a ? a.x + a.w + 10 : b.x - 13;
+    const y = Math.min(...[a, b].filter(Boolean).map(q => q.y)), h = Math.max(...[a, b].filter(Boolean).map(q => q.y + q.h)) - y;
+    Object.assign(l.style, { width: '3px', height: h + 'px', transform: `translate(${x}px,${y}px)` });
+  } else {
+    const y = a && b ? (a.y + a.h + b.y) / 2 - 1.5 : a ? a.y + a.h + 5 : b.y - 8;
+    const x = Math.min(...[a, b].filter(Boolean).map(q => q.x)), w = Math.max(...[a, b].filter(Boolean).map(q => q.x + q.w)) - x;
+    Object.assign(l.style, { width: w + 'px', height: '3px', transform: `translate(${x}px,${y}px)` });
+  }
+}
+function applyDrop(t, ids) {
+  const hint = t.type === 'between' ? N(t.a || t.b).side : null;
+  commit(() => {
+    for (const id of ids) removeAndCompact(id, true);
+    let parentId, index;
+    if (t.type === 'child') { parentId = t.id; index = N(t.id).children.length; N(t.id).collapsed = false; }
+    else { parentId = t.parent; const sib = N(parentId).children; index = t.b ? sib.indexOf(t.b) : sib.indexOf(t.a) + 1; }
+    N(parentId).children.splice(index, 0, ...ids);
+    ids.forEach(id => { N(id).parent = parentId; nullPos(id); if (hint) N(id)._side = hint; });
+  });
+}
+
+vp.addEventListener('wheel', e => {
+  if (e.target.closest('#drawer,#chat,#stage')) return;
+  e.preventDefault();
+  const r = vp.getBoundingClientRect();
+  let dx = e.deltaX, dy = e.deltaY;
+  if (e.deltaMode === 1) { dx *= 16; dy *= 16; }
+  if (e.ctrlKey || e.metaKey) { const c = Math.max(-60, Math.min(60, dy)); zoomAt(e.clientX - r.left, e.clientY - r.top, Math.exp(-c * (Math.abs(c) < 20 ? 0.012 : 0.004))); return; }
+  if (e.shiftKey && !dx) { dx = dy; dy = 0; }
+  view.x -= dx; view.y -= dy; applyView();
+}, { passive: false });
+
+/* ---------- keyboard ---------- */
+const inField = t => t && t.closest && t.closest('input,textarea,select,dialog,[contenteditable=true],[contenteditable=plaintext-only]');
+document.addEventListener('keydown', e => {
+  if (!cur || editing || inField(e.target) || document.querySelector('dialog[open]')) return;
+  const mod = e.metaKey || e.ctrlKey, k = e.key, first = sel[0];
+  const onCanvas = e.target === document.body || e.target === document.documentElement || vp.contains(e.target);
+  if (!onCanvas && !(mod && /^[zZyY]$/.test(k))) return;
+  if (mod && (k === 'z' || k === 'Z')) { e.preventDefault(); e.shiftKey ? redo() : undo(); return; }
+  if (mod && (k === 'y' || k === 'Y')) { e.preventDefault(); redo(); return; }
+  if (mod && k === 'Enter' && cur.checklist && sel.length && focusArea !== 'stage') { e.preventDefault(); toggleCheck(sel); return; }
+  if (mod && (k === 'a' || k === 'A')) { e.preventDefault(); setSel([cur.rootId]); return; }
+  if (mod) return;
+  if (focusArea === 'stage' && (noteSel.size || stageSelected)) {
+    const arr = notes(), idxs = [...noteSel].map(id => arr.findIndex(n => n.id === id)).filter(i => i >= 0);
+    if (k === 'Enter' || k === 'Tab') { e.preventDefault(); addNoteAndEdit(idxs.length ? Math.max(...idxs) + 1 : arr.length); return; }
+    if (k === 'F2') { e.preventDefault(); if (idxs.length) startNoteEdit(arr[Math.min(...idxs)].id); return; }
+    if (k === 'Delete' || k === 'Backspace') { e.preventDefault(); deleteNotes(); return; }
+    if (k === 'Escape') { clearStageSel(); render(); return; }
+    if (k.length === 1 && !e.altKey && noteSel.size === 1) { e.preventDefault(); startNoteEdit([...noteSel][0]); document.execCommand('insertText', false, k); }
+    return;
+  }
+  if (k === 'Tab') { e.preventDefault(); if (first) addAndEdit(first); return; }
+  if (k === 'Enter') { e.preventDefault(); if (!first) return; const n = N(first); if (!n.parent) addAndEdit(first); else addAndEdit(n.parent, N(n.parent).children.indexOf(first) + 1, n.side); return; }
+  if (k === 'F2') { e.preventDefault(); if (first) startEdit(first); return; }
+  if (k === 'Delete' || k === 'Backspace') { e.preventDefault(); deleteSel(); return; }
+  if (k === 'Escape') { closePalette(); setSel([]); return; }
+  if (k === ' ') { e.preventDefault(); const ids = sel.filter(id => N(id).children.length && id !== cur.rootId); if (ids.length) commit(() => ids.forEach(id => { N(id).collapsed = !N(id).collapsed; })); return; }
+  if (e.shiftKey && (e.code === 'Digit1' || k === '!')) { e.preventDefault(); fit(); return; }
+  if (e.shiftKey && (e.code === 'Digit2' || k === '@' || k === '"')) { e.preventDefault(); center(); return; }
+  if (k.startsWith('Arrow')) { e.preventDefault(); nav(k); return; }
+  if (k.length === 1 && !e.altKey && sel.length === 1) { e.preventDefault(); startEdit(first, N(first).text + k); }
+});
+function nav(k) {
+  const id = sel[0]; if (!id) { setSel([cur.rootId]); return; }
+  const n = N(id), p = pos[id]; if (!p) return;
+  const sib = d => { if (!n.parent) return null; const s = N(n.parent).children; return s[s.indexOf(id) + d] || null; };
+  const child = () => !n.collapsed && n.children[0] || null;
+  let t = null;
+  if (cur.layout === 'sitemap') {
+    if (!n.parent) t = k === 'ArrowDown' ? child() : null;
+    else if (p.depth === 1) t = k === 'ArrowLeft' ? sib(-1) : k === 'ArrowRight' ? sib(1) : k === 'ArrowDown' ? child() : n.parent;
+    else t = k === 'ArrowUp' ? (sib(-1) || n.parent) : k === 'ArrowDown' ? (child() || sib(1)) : k === 'ArrowLeft' ? n.parent : child();
+  } else if (!n.parent) {
+    const kids = n.collapsed ? [] : n.children;
+    t = k === 'ArrowRight' ? kids.find(c => pos[c] && pos[c].dir > 0) : k === 'ArrowLeft' ? kids.find(c => pos[c] && pos[c].dir < 0) : null;
+  } else {
+    const out = p.dir > 0 ? 'ArrowRight' : 'ArrowLeft';
+    t = k === out ? child() : k === 'ArrowUp' ? sib(-1) : k === 'ArrowDown' ? sib(1) : n.parent;
+  }
+  if (t) { setSel([t]); ensureVisible(t); }
+}
+
+/* Checklist: a node with children counts as done when all its children are done (suggested
+   additions are ignored); a node without children keeps its own tick. Ticking or unticking a
+   node sets its whole branch, so a parent's state always follows its children. */
+function isChecked(id, memo) {
+  if (memo && memo.has(id)) return memo.get(id);
+  const n = N(id), kids = n.children.filter(c => !N(c).pending);
+  const v = kids.length ? kids.every(c => isChecked(c, memo)) : !!n.checked;
+  if (memo) memo.set(id, v); return v;
+}
+function leafCount(id, memo) {
+  const out = { done: 0, total: 0 };
+  const rec = x => { const kids = N(x).children.filter(c => !N(c).pending); if (!kids.length) { out.total++; if (isChecked(x, memo)) out.done++; } else kids.forEach(rec); };
+  N(id).children.filter(c => !N(c).pending).forEach(rec); return out;
+}
+function toggleCheck(ids) {
+  const all = ids.filter(id => N(id)); ids = topLevel(all); if (!ids.length) return;
+  const memo = new Map(), hasKids = id => N(id).children.some(c => !N(c).pending);
+  if (!all.every(id => isChecked(id, memo))) {
+    commit(() => ids.forEach(id => { const rec = x => { N(x).checked = true; N(x).children.forEach(rec); }; rec(id); }));
+    return;
+  }
+  // Unticking: only nodes without children can be unticked. A done parent reopens when a child is unticked or a new child is added.
+  const leaves = all.filter(id => !hasKids(id));
+  if (!leaves.length) { toast('A parent is done when all its children are. Untick a child, or add a new child, to reopen it.'); return; }
+  commit(() => leaves.forEach(id => { N(id).checked = false; }));
+  if (leaves.length < all.length) toast('Parents stay done while all their children are done; only the nodes without children were unticked.');
+}
+$('#checkBtn').onclick = () => { if (editing) commitEdit(); cur.checklist = !cur.checklist; cur.updated = Date.now(); render(); scheduleSave(); toast(cur.checklist ? 'Checklist on. Click a box, or press Ctrl/Cmd+Enter, to tick nodes off.' : 'Checklist off. Ticks are kept for next time.'); };
+
+/* Close the gap a removed or moved-away branch leaves: later siblings move up into its space,
+   the remaining children are re-centred on their parent (Mind map and Tree), and if the parent's
+   branch got shorter, the parent's later siblings follow, level by level. Nothing moves outside
+   the space the branch used before. */
+function kidsBox(G, side) {
+  let u = null;
+  for (const c of (N(G).collapsed ? [] : N(G).children)) if (sz[c] && N(c).x != null && N(c).side === side) u = union(u, bbox(c));
+  return u;
+}
+function removeAndCompact(id, keepNodes) {
+  const n = N(id); if (!n) return;
+  if (!n.parent) { if (!keepNodes) removeSubtree(id); return; }
+  const P = n.parent, idx = N(P).children.indexOf(id), side = n.side, D = bbox(id);
+  const anc = []; let c = id, a = P;
+  while (a) { anc.push({ id: a, box: bbox(a), kids: kidsBox(a, N(c).side), side: N(c).side }); c = a; a = N(a).parent; }
+  if (keepNodes) N(P).children.splice(idx, 1); else removeSubtree(id);
+  if (D) compact(P, idx, side, D, anc);
+}
+function recenter(G, side, oldExt) {
+  if (cur.layout === 'sitemap' || !oldExt) return;
+  const kids = (N(G).collapsed ? [] : N(G).children).filter(c => sz[c] && N(c).x != null && N(c).side === side);
+  const blk = kidsBox(G, side), g = rectOf(G); if (!kids.length || !blk || !g) return;
+  let dy = (g.y + g.h / 2) - (blk.y + blk.b) / 2;
+  const lim = dy > 0 ? oldExt.b - blk.b : oldExt.y - blk.y;
+  dy = Math.round(dy / GRID) * GRID;
+  if (dy > 0 && dy > lim) dy = Math.floor(lim / GRID) * GRID; else if (dy < 0 && dy < lim) dy = Math.ceil(lim / GRID) * GRID;
+  if (dy) kids.forEach(k => shiftSubtree(k, 0, dy));
+}
+function compact(P, idx, side, D, anc) {
+  const sm = cur.layout === 'sitemap';
+  const ok = (c, sd) => sz[c] && N(c).x != null && (sm || N(c).side === sd);
+  const ch = N(P).collapsed ? [] : N(P).children;
+  const earlier = ch.slice(0, idx).filter(c => ok(c, side)), later = ch.slice(idx).filter(c => ok(c, side));
+  if (later.length) {
+    const first = bbox(later[0]), prev = earlier.length ? bbox(earlier[earlier.length - 1]) : null;
+    if (sm && !N(P).parent) { const dx = snapUp(prev ? prev.r + COLGAP : D.x) - first.x; if (dx < 0) later.forEach(c => shiftSubtree(c, dx, 0)); }
+    else { const dy = snapUp(prev ? prev.b + vgap(sz[later[0]].depth) : D.y) - first.y; if (dy < 0) later.forEach(c => shiftSubtree(c, 0, dy)); }
+  }
+  recenter(P, side, anc[0].kids);
+  for (let k = 0; k < anc.length - 1; k++) {
+    const C = anc[k].id, oldB = anc[k].box, G = anc[k + 1].id, nb = bbox(C);
+    if (!nb || !oldB) break;
+    const gs = N(G).collapsed ? [] : N(G).children;
+    const L = gs.slice(gs.indexOf(C) + 1).filter(c => ok(c, N(C).side));
+    if (L.length) {
+      const f = bbox(L[0]);
+      if (sm && !N(G).parent) { const dx = Math.floor(Math.min(oldB.r - nb.r, f.x - nb.r - COLGAP) / GRID) * GRID; if (dx > 0) L.forEach(c => shiftSubtree(c, -dx, 0)); }
+      else { const dy = Math.floor(Math.min(oldB.b - nb.b, f.y - nb.b - vgap(sz[L[0]].depth)) / GRID) * GRID; if (dy > 0) L.forEach(c => shiftSubtree(c, 0, -dy)); }
+    }
+    recenter(G, anc[k + 1].side, anc[k + 1].kids);
+  }
+}
+function deleteSel() {
+  const ids = topLevel(sel).filter(id => id !== cur.rootId);
+  if (!ids.length) { if (sel.includes(cur.rootId)) toast("The central node can't be deleted."); return; }
+  const parent = N(ids[0]).parent;
+  commit(() => { ids.forEach(id => removeAndCompact(id)); sel = [parent]; });
+}
+
+/* ---------- paste / copy ---------- */
+function parseOutline(text) {
+  const raw = text.replace(/\r\n?/g, '\n').split('\n'), items = [];
+  for (const line of raw) {
+    if (!line.trim()) continue;
+    const m = line.match(/^([ \t]*)(.*)$/); const ws = m[1]; let rest = m[2].trim();
+    let heading = 0, numDepth = 0, checked = null;
+    const h = rest.match(/^(#{1,6})\s+(.*)$/); if (h) { heading = h[1].length; rest = h[2]; }
+    else {
+      const b = rest.match(/^[-*+•]\s+(.*)$/); if (b) rest = b[1];
+      const nm = rest.match(/^(\d+(?:\.\d+)+)[.)]?\s+(.*)$/) || rest.match(/^(\d+)[.)]\s+(.*)$/);
+      if (nm) { numDepth = nm[1].split('.').length; rest = nm[2]; }
+      const cb = rest.match(/^\[([ xX])\]\s+(.*)$/); if (cb) { checked = cb[1] !== ' '; rest = cb[2]; }
+    }
+    rest = rest.trim(); if (!rest) continue;
+    items.push({ tabs: (ws.match(/\t/g) || []).length, spaces: (ws.match(/ /g) || []).length, heading, numDepth, checked, text: rest });
+  }
+  if (!items.length) return [];
+  const sp = items.map(i => i.spaces).filter(s => s > 0), unit = sp.length ? Math.min(...sp) : 2;
+  const hl = [...new Set(items.filter(i => i.heading).map(i => i.heading))].sort((a, b) => a - b);
+  let lastH = -1;
+  const lv = items.map(i => {
+    if (i.heading) { lastH = hl.indexOf(i.heading); return lastH; }
+    const ind = i.tabs + Math.round(i.spaces / unit);
+    return lastH + 1 + (ind > 0 ? ind : (i.numDepth > 1 ? i.numDepth - 1 : 0));
+  });
+  const min = Math.min(...lv); let prev = -1;
+  return items.map((i, k) => { let l = Math.max(0, lv[k] - min); if (l > prev + 1) l = prev + 1; prev = l; return { level: l, text: i.text, checked: i.checked }; });
+}
+function insertOutline(target, list, pending) {
+  const stack = [];
+  for (const it of list) { const parent = it.level === 0 ? target : stack[it.level - 1]; stack[it.level] = addNode(parent, it.text, null, pending); if (it.checked) N(stack[it.level]).checked = true; stack.length = it.level + 1; }
+}
+function outlineText(ids) {
+  const lines = [];
+  const memo = new Map(), ck = !!cur.checklist;
+  const rec = (id, d) => { lines.push('  '.repeat(d) + '- ' + (ck ? (isChecked(id, memo) ? '[x] ' : '[ ] ') : '') + N(id).text.replace(/\s*\n\s*/g, ' ')); N(id).children.forEach(c => rec(c, d + 1)); };
+  ids.forEach(id => rec(id, 0)); return lines.join('\n');
+}
+document.addEventListener('paste', e => {
+  if (!cur || editing || inField(e.target) || document.querySelector('dialog[open]')) return;
+  e.preventDefault();
+  const cd = e.clipboardData, text = cd ? cd.getData('text/plain') : '';
+  if (focusArea === 'stage' && (noteSel.size || stageSelected)) { if (text.trim()) stagePaste(text); else toast('Only text can be pasted into the staging area.'); return; }
+  if (!text.trim()) { toast([...(cd ? cd.items : [])].some(i => i.type.startsWith('image/')) ? 'Image import comes in the next version.' : 'Paste of this type is not supported.'); return; }
+  if (!sel.length) { toast('Select a node to paste into.'); return; }
+  const list = parseOutline(text); if (!list.length) { toast('Nothing to paste.'); return; }
+  const target = sel[0];
+  commit(() => { insertOutline(target, list, false); N(target).collapsed = false; });
+  toast(list.length === 1 ? 'Added 1 node.' : `Added ${list.length} nodes.`);
+});
+function onCopy(e, cut) {
+  if (!cur || editing || inField(e.target)) return;
+  if (focusArea === 'stage' && noteSel.size) { e.preventDefault(); e.clipboardData.setData('text/plain', notes().filter(n => noteSel.has(n.id)).map(n => n.text).join('\n\n')); if (cut) deleteNotes(); toast(cut ? 'Notes cut.' : 'Notes copied.'); return; }
+  if (!sel.length) return;
+  e.preventDefault(); e.clipboardData.setData('text/plain', outlineText(topLevel(sel)));
+  if (cut) deleteSel(); toast(cut ? 'Cut as a nested list.' : 'Copied as a nested list.');
+}
+document.addEventListener('copy', e => onCopy(e, false));
+document.addEventListener('cut', e => onCopy(e, true));
+$('#copyBtn').onclick = async () => {
+  const ids = sel.length ? topLevel(sel) : [cur.rootId];
+  try { await navigator.clipboard.writeText(outlineText(ids)); toast(sel.length ? 'Selection copied as a nested list.' : 'Whole map copied as a nested list.'); }
+  catch (e) { toast('Copying was blocked here. Select nodes and press Ctrl/Cmd+C instead.'); }
+};
+
+/* ---------- toolbar ---------- */
+document.querySelectorAll('.seg button').forEach(b => b.onclick = () => { if (editing) commitEdit(); commit(() => { cur.layout = b.dataset.layout; N(cur.rootId).x = null; }); fit(); toast('Map re-arranged. Ctrl/Cmd+Z puts it back.'); });
+$('#tidyBtn').onclick = () => { const ids = topLevel(sel); if (!ids.length) return; commit(() => ids.forEach(tidy)); };
+$('#delBtn').onclick = () => focusArea === 'stage' && noteSel.size ? deleteNotes() : deleteSel();
+$('#undoBtn').onclick = undo; $('#redoBtn').onclick = redo;
+$('#zoomIn').onclick = () => zoomAt(vp.clientWidth / 2, vp.clientHeight / 2, 1.2);
+$('#zoomOut').onclick = () => zoomAt(vp.clientWidth / 2, vp.clientHeight / 2, 1 / 1.2);
+$('#zoomLbl').onclick = () => zoomAt(vp.clientWidth / 2, vp.clientHeight / 2, 1 / view.z);
+$('#fitBtn').onclick = fit; $('#centerBtn').onclick = center;
+$('#helpBtn').onclick = () => $('#helpDlg').showModal();
+
+const pal = $('#palette');
+pal.innerHTML = PALETTE.map(([name, c], i) => `<button class="sw${c ? '' : ' def'}" data-i="${i}" title="${name}" aria-label="${name}" style="--sw:${c || 'transparent'}"></button>`).join('');
+$('#colorBtn').onclick = e => {
+  e.stopPropagation();
+  if (pal.style.display === 'grid') { closePalette(); return; }
+  const r = $('#colorBtn').getBoundingClientRect(); pal.style.display = 'grid';
+  pal.style.left = Math.max(8, Math.min(innerWidth - pal.offsetWidth - 8, r.left)) + 'px'; pal.style.top = (r.bottom + 6) + 'px';
+};
+pal.onclick = e => { const b = e.target.closest('.sw'); if (!b) return; const c = PALETTE[+b.dataset.i][1]; const ids = sel.filter(id => N(id)); if (ids.length) commit(() => ids.forEach(id => { N(id).color = c; })); closePalette(); };
+function closePalette() { pal.style.display = 'none'; }
+$('.bar').addEventListener('click', e => { if (e.detail > 0 && e.target.closest('button') && !e.target.closest('#colorBtn,#mapTitle') && !document.querySelector('dialog[open]')) vp.focus({ preventScroll: true }); });
+document.addEventListener('pointerdown', e => { if (!e.target.closest('#palette,#colorBtn')) closePalette(); if (!e.target.closest('#drawer,#mapsBtn')) $('#drawer').classList.remove('open'); });
+
+/* ---------- Claude ---------- */
+async function getSample() { if (!window.claude || !window.claude.use) return null; try { return await window.claude.use('sample'); } catch (e) { return null; } }
+function parseLoose(t) { const m = String(t || '').match(/\{[\s\S]*\}/); return JSON.parse(m ? m[0] : t); }
+async function askJSON(prompt) {
+  const s = await getSample(); if (!s) throw { code: 'absent' };
+  if (typeof s.json === 'function') { try { return await s.json(prompt); } catch (e) { if (e && e.code) throw e; } }
+  const r = await s(prompt); return parseLoose(r && r.text);
+}
+function aiError(e) {
+  const c = e && e.code;
+  toast(c === 'absent' ? 'Claude features work when this page is opened in Claude.' : c === 'not_granted' ? 'Claude access was not allowed for this page.' :
+    c === 'rate_limited' ? 'Your Claude usage limit is reached. Try again later.' : "Claude couldn't complete that. Try again.");
+}
+function setBusy(b, btn, label) { aiBusy = b; btn.textContent = b ? 'Working…' : label; updateUI(); }
+function pathOf(id) { const p = []; let n = N(id); while (n) { p.unshift(n.text); n = N(n.parent); } return p; }
+$('#expandBtn').onclick = async () => {
+  const ids = sel.filter(id => N(id)).slice(0, 5); if (!ids.length) { toast('Select a node to expand.'); return; }
+  const mapId = cur.id, btn = $('#expandBtn'); setBusy(true, btn, 'Expand');
+  try {
+    for (const id of ids) {
+      if (cur.id !== mapId || !N(id)) continue;
+      const n = N(id);
+      const prompt = `You help build a mind map. Suggest 3 to 5 new child ideas for the node ${JSON.stringify(n.text)}.
+Path from the central topic to this node: ${JSON.stringify(pathOf(id).join(' > '))}.
+Existing children, do not repeat them: ${JSON.stringify(n.children.map(c => N(c).text))}.
+Rules: each idea is a short label of at most 8 words. Write in the same language as the node text. No numbering.
+Return only JSON: {"ideas":["...","..."]}`;
+      const v = await askJSON(prompt);
+      const ideas = (v && Array.isArray(v.ideas) ? v.ideas : []).map(s => String(s).trim().slice(0, 300)).filter(Boolean).slice(0, 6);
+      if (cur.id !== mapId || !N(id) || !ideas.length) continue;
+      commit(() => { ideas.forEach(t => addNode(id, t, null, true)); N(id).collapsed = false; });
+    }
+  } catch (e) { aiError(e); } finally { setBusy(false, btn, 'Expand'); }
+};
+$('#genBtn').onclick = () => {
+  const has = sel.some(id => N(id));
+  $('#tgtBranch').disabled = !has; (has ? $('#tgtBranch') : $('#tgtMap')).checked = true;
+  $('#genDlg').showModal(); $('#genText').focus();
+};
+// Dialog buttons close their dialog directly: the artifact sandbox can block form submission, which method="dialog" relies on.
+document.querySelectorAll('dialog form').forEach(f => f.addEventListener('submit', e => e.preventDefault()));
+document.querySelectorAll('dialog button[value]').forEach(btn => btn.addEventListener('click', e => {
+  e.preventDefault();
+  const dl = btn.closest('dialog');
+  if (btn.value === 'go') { const text = $('#genText').value.trim(); if (!text) { $('#genText').focus(); return; } dl.close('go'); generate(text, $('#tgtMap').checked); return; }
+  dl.close(btn.value);
+}));
+function cleanTree(arr, depth, budget) {
+  if (!Array.isArray(arr) || depth > 6) return [];
+  const out = [];
+  for (const it of arr) { if (budget.n <= 0) break; const text = String(it && (it.text ?? it.title ?? it.label) || '').trim().slice(0, 300); if (!text) continue; budget.n--; out.push({ text, children: cleanTree(it.children, depth + 1, budget) }); }
+  return out;
+}
+function insertTree(parent, arr) { for (const it of arr) { const id = addNode(parent, it.text, null, true); insertTree(id, it.children); } }
+async function generate(text, asMap) {
+  const target = sel.find(id => N(id)), btn = $('#genBtn'); setBusy(true, btn, 'Generate');
+  try {
+    const prompt = `Turn the text below into a mind map structure. Keep the language of the text and the order of its ideas.
+Labels are short, at most 10 words. Use at most 4 levels below the title.
+Return only JSON of this form: {"title":"...","children":[{"text":"...","children":[...]}]}
+
+Text:
+"""
+${text.slice(0, 20000)}
+"""`;
+    const v = await askJSON(prompt);
+    const title = String(v && v.title || '').trim().slice(0, 200) || 'Generated map';
+    const kids = cleanTree(v && v.children, 0, { n: 400 });
+    if (!kids.length) { toast("Claude didn't return a structure. Try again with more text."); return; }
+    if (asMap || !target || !N(target)) {
+      const m = makeMap(title); maps[m.id] = m; switchMap(m.id);
+      commit(() => insertTree(cur.rootId, kids)); fit();
+    } else {
+      commit(() => { const b = addNode(target, title, null, true); insertTree(b, kids); N(target).collapsed = false; });
+    }
+    toast('Review the suggestions: keep or remove each one, or use Accept all.');
+  } catch (e) { aiError(e); } finally { setBusy(false, btn, 'Generate'); }
+}
+/* ---------- staging area: raw notes to the left of the map ---------- */
+let noteSel = new Set(), stageSelected = false, editingNote = null, noteSnap = null, noteNew = false, noteOrig = '', dragNotes = null;
+const stageEls = new Map();
+const notes = () => cur.staging || (cur.staging = []);
+const noteById = id => notes().find(n => n.id === id);
+function clearStageSel() { noteSel = new Set(); stageSelected = false; }
+function selectNotes(ids) { if (editing) commitEdit(); stageSelected = false; noteSel = new Set(ids); focusArea = 'stage'; render(); }
+function selectStage() { if (editing) commitEdit(); noteSel = new Set(); stageSelected = true; focusArea = 'stage'; render(); }
+function addNote(text, index) {
+  const n = { id: 's' + uid(), text };
+  const arr = notes(); if (index == null || index > arr.length) arr.push(n); else arr.splice(index, 0, n);
+  return n.id;
+}
+function renderStage() {
+  if (!cur) return;
+  const box = $('#stageNotes'), arr = notes(), alive = new Set(arr.map(n => n.id));
+  for (const [id, el] of stageEls) if (!alive.has(id)) { el.remove(); stageEls.delete(id); }
+  arr.forEach((n, i) => {
+    let el = stageEls.get(n.id);
+    if (!el) { el = document.createElement('div'); el.className = 'snote'; el.dataset.note = n.id; el.innerHTML = '<span class="t"></span>'; stageEls.set(n.id, el); }
+    if (box.children[i] !== el) box.insertBefore(el, box.children[i] || null);
+    const t = el.firstChild;
+    if (editingNote !== n.id && t.textContent !== n.text) t.textContent = n.text;
+    el.title = editingNote === n.id ? '' : n.text;
+    el.classList.toggle('sel', noteSel.has(n.id)); el.classList.toggle('editing', editingNote === n.id);
+    el.classList.toggle('dragging', !!(dragNotes && dragNotes.includes(n.id)));
+    let na = el.querySelector('.na');
+    const showActs = noteSel.size === 1 && noteSel.has(n.id) && editingNote !== n.id;
+    if (showActs && !na) { na = document.createElement('span'); na.className = 'na'; na.innerHTML = '<button data-s="structure" title="Claude turns this note into nodes, under the selected map node or wherever it fits best">Structure with Claude</button>'; el.appendChild(na); }
+    else if (!showActs && na) na.remove();
+  });
+  $('#stage').classList.toggle('sel', stageSelected);
+  $('#stage').classList.toggle('blur', focusArea !== 'stage');
+  $('#stageHint').style.display = arr.length ? 'none' : 'block';
+}
+/* Side panels: the staging area on the left (open by default) and the chat on the right. Opening or closing one keeps the map where it was on screen. */
+function setPanel(name, open) {
+  const cls = name === 'stage' ? 'stage-open' : 'chat-open', el = $('#' + name);
+  if (vp.classList.contains(cls) === open) return;
+  let w;
+  if (open) { vp.classList.add(cls); w = el.offsetWidth; } else { w = el.offsetWidth; vp.classList.remove(cls); }
+  vp.style.setProperty(name === 'stage' ? '--lp' : '--rp', open ? w + 'px' : '0px');
+  view.x += (name === 'stage' ? 1 : -1) * (open ? 1 : -1) * w / 2; applyView();
+  $(name === 'stage' ? '#stageBtn' : '#chatBtn').setAttribute('aria-pressed', String(open));
+  if (name === 'stage') { lsSet('structuremindmap.stage', open ? '1' : '0'); if (!open) { if (editingNote) commitNoteEdit(); if (noteSel.size || stageSelected) { clearStageSel(); render(); } } }
+}
+$('#stageBtn').onclick = () => setPanel('stage', !vp.classList.contains('stage-open'));
+$('#stageClose').onclick = () => { setPanel('stage', false); vp.focus({ preventScroll: true }); };
+function startNoteEdit(id, opts) {
+  if (editing) commitEdit();
+  if (editingNote) commitNoteEdit();
+  const n = noteById(id); if (!n) return;
+  if (!noteSnap) noteSnap = snapshot();
+  editingNote = id; noteOrig = n.text; stageSelected = false; noteSel = new Set([id]); focusArea = 'stage'; render();
+  const el = stageEls.get(id), t = el.firstChild;
+  t.contentEditable = PLAIN ? 'plaintext-only' : 'true'; t.focus();
+  let r = opts && opts.point ? caretAt(opts.point.x, opts.point.y, t) : null;
+  if (!r) { r = document.createRange(); r.selectNodeContents(t); if (!(opts && opts.selectAll) && !noteNew) r.collapse(false); }
+  const s = getSelection(); s.removeAllRanges(); s.addRange(r);
+}
+function commitNoteEdit(cancel) {
+  if (!editingNote) return;
+  const id = editingNote, el = stageEls.get(id), t = el && el.firstChild;
+  let txt = t ? t.innerText.replace(/​/g, '').replace(/\r/g, '') : '';
+  txt = txt.split('\n').map(l => l.trimEnd()).join('\n').trim();
+  editingNote = null; if (t) { t.contentEditable = 'false'; t.blur(); }
+  const snap = noteSnap, wasNew = noteNew; noteSnap = null; noteNew = false;
+  const n = noteById(id);
+  if (cancel || !txt) { restore(snap); if (!noteById(id)) noteSel = new Set(); render(); return; }
+  n.text = txt; render();
+  if (txt !== noteOrig || wasNew) { pushUndo(snap); cur.updated = Date.now(); scheduleSave(); }
+}
+function addNoteAndEdit(index) {
+  if (editingNote) commitNoteEdit();
+  noteSnap = snapshot(); noteNew = true;
+  const id = addNote('', index); startNoteEdit(id);
+}
+function deleteNotes() {
+  const ids = [...noteSel]; if (!ids.length) return;
+  commit(() => { cur.staging = notes().filter(n => !ids.includes(n.id)); noteSel = new Set(); stageSelected = true; });
+}
+$('#stage').addEventListener('keydown', e => {
+  if (!editingNote) return;
+  e.stopPropagation();
+  if (e.key === 'Enter' && e.altKey && !e.isComposing) { e.preventDefault(); if (!document.execCommand(PLAIN ? 'insertText' : 'insertLineBreak', false, '\n')) document.execCommand('insertText', false, '\n'); return; }
+  if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); commitNoteEdit(); vp.focus({ preventScroll: true }); }
+  else if (e.key === 'Escape') { e.preventDefault(); commitNoteEdit(true); vp.focus({ preventScroll: true }); }
+});
+$('#stage').addEventListener('input', () => { if (editingNote) { const s = getSelection(); const r = s.rangeCount ? s.getRangeAt(0) : null; renderStage(); if (r) { s.removeAllRanges(); s.addRange(r); } } });
+$('#stage').addEventListener('focusout', () => setTimeout(() => { if (editingNote && !stageEls.get(editingNote)?.contains(document.activeElement)) commitNoteEdit(); }, 0));
+
+/* Paste into the staging area: one line becomes one note; several lines ask how to split. */
+function stagePaste(text) {
+  const lines = text.replace(/\r\n?/g, '\n').split('\n').map(l => l.trim().replace(/^([-*+•]|\d+(\.\d+)*[.)]?|#{1,6})\s+/, '').trim()).filter(Boolean);
+  if (!lines.length) { toast('Nothing to paste.'); return; }
+  const at = noteSel.size ? Math.max(...[...noteSel].map(id => notes().findIndex(n => n.id === id))) + 1 : notes().length;
+  const put = list => { commit(() => { let i = at; const ids = list.map(t => addNote(t.slice(0, 4000), i++)); noteSel = new Set(ids); stageSelected = false; sel = []; }); toast(list.length === 1 ? 'Added 1 note.' : `Added ${list.length} notes.`); };
+  if (lines.length === 1) { put(lines); return; }
+  const dl = $('#pasteDlg');
+  $('#pasteText').textContent = `The text has ${lines.length} lines.`;
+  dl.returnValue = ''; dl.showModal();
+  dl.onclose = () => { if (dl.returnValue === 'one') put([text.replace(/\r\n?/g, '\n').trim()]); else if (dl.returnValue === 'lines') put(lines); };
+}
+function applyNoteDrop(t, ids) {
+  const hint = t.type === 'between' ? N(t.a || t.b).side : null;
+  commit(() => {
+    let parentId, index;
+    if (t.type === 'child') { parentId = t.id; index = N(t.id).children.length; N(t.id).collapsed = false; }
+    else { parentId = t.parent; const sib = N(parentId).children; index = t.b ? sib.indexOf(t.b) : sib.indexOf(t.a) + 1; }
+    const added = [];
+    ids.forEach((nid, k) => { const note = noteById(nid); if (!note) return; const id = addNode(parentId, note.text, index + k, false); if (hint) N(id)._side = hint; added.push(id); });
+    cur.staging = notes().filter(n => !ids.includes(n.id));
+    noteSel = new Set(); sel = added; focusArea = 'map';
+  });
+}
+/* Structure with Claude: the note becomes nodes. With a map node selected, that node is the parent;
+   otherwise Claude reads the whole map and picks the parent where the content fits best. */
+async function structureNote(id) {
+  const note = noteById(id); if (!note) return;
+  const btn = stageEls.get(id)?.querySelector('[data-s=structure]'); if (btn) { btn.disabled = true; btn.textContent = 'Working…'; }
+  const mapId = cur.id, fixed = topLevel(sel.filter(x => N(x)))[0] || null;
+  const A = new Map(), R = new Map(); preorder().forEach((x, i) => { A.set(x, 'n' + (i + 1)); R.set('n' + (i + 1), x); });
+  try {
+    const v = await askJSON(`You help place a raw note into a mind map.
+Turn the note into one or more nodes, with children where the note has structure. Use only what the note says; do not invent new ideas. Keep the language of the note. Labels are short, at most 10 words, at most 3 levels deep.
+${fixed ? `Place everything under the node [${A.get(fixed)}] ${JSON.stringify(N(fixed).text)}; the user chose it.` : `Choose the existing node, at any level, under which this content fits best. Use the central node [${A.get(cur.rootId)}] only if nothing fits better.`}
+Leave out parts that the map already covers, so nothing is duplicated.
+
+Map (each line is [id] text; indentation shows nesting):
+${buildMapText(A)}
+
+Return only JSON of this form: {"parent":"n12","nodes":[{"text":"...","children":[...]}],"reason":"one short sentence on why it goes there, in the language of the note"}
+
+Note:
+"""
+${note.text.slice(0, 8000)}
+"""`);
+    if (!cur || cur.id !== mapId || !noteById(id)) return;
+    let parent = fixed && N(fixed) ? fixed : R.get(String(v && v.parent || '').trim());
+    if (!parent || !N(parent)) parent = cur.rootId;
+    let kids = cleanTree(v && (v.nodes || v.children), 0, { n: 200 });
+    if (!kids.length && v && v.title) kids = [{ text: String(v.title).slice(0, 300), children: [] }];
+    if (!kids.length) { toast('Claude found nothing in this note that the map does not already cover.'); if (btn) { btn.disabled = false; btn.textContent = 'Structure with Claude'; } return; }
+    commit(() => { insertTree(parent, kids); N(parent).collapsed = false; cur.staging = notes().filter(n => n.id !== id); noteSel = new Set(); sel = [parent]; focusArea = 'map'; });
+    ensureVisible(parent);
+    const reason = String(v && v.reason || '').trim().slice(0, 200);
+    toast(`Suggested under "${N(parent).text.slice(0, 40)}".${reason ? ' ' + reason : ''} Keep or remove each suggestion.`);
+  } catch (e) { aiError(e); if (btn) { btn.disabled = false; btn.textContent = 'Structure with Claude'; } }
+}
+$('#stageAdd').onclick = e => { e.stopPropagation(); addNoteAndEdit(); };
+
+$('#stage').addEventListener('click', e => { const b = e.target.closest('[data-s=structure]'); if (b) { e.stopPropagation(); structureNote(b.closest('.snote').dataset.note); } });
+
+/* ---------- suggestions (shared by Expand, Generate and the chat) ---------- */
+const hasSug = n => n.pending || !!n.sug;
+function sugValid(n) {
+  if (!n.sug || !n.sug.move) return true;
+  const p = N(n.sug.move.parent); return !!p && p.id !== n.id && !isAncestor(n.id, p.id);
+}
+function acceptOne(id) {
+  const n = N(id); if (!n) return;
+  if (n.pending) { let x = n; while (x && x.pending) { x.pending = false; x = N(x.parent); } }
+  const s = n.sug; delete n.sug; if (!s) return;
+  if (s.text) n.text = s.text;
+  if (s.remove) { removeAndCompact(id); return; }
+  if (s.move && sugValid({ ...n, sug: s })) {
+    removeAndCompact(id, true);
+    const p = N(s.move.parent); let i = s.move.after && N(s.move.after) && N(s.move.after).parent === p.id ? p.children.indexOf(s.move.after) + 1 : p.children.length;
+    p.children.splice(i, 0, id); n.parent = p.id; p.collapsed = false; nullPos(id);
+  }
+}
+function rejectOne(id) { const n = N(id); if (!n) return; if (n.pending) removeAndCompact(id); else delete n.sug; }
+function reviewOne(id, ok) { if (!N(id)) return; commit(() => ok ? acceptOne(id) : rejectOne(id)); }
+$('#acceptAll').onclick = () => commit(() => {
+  Object.values(cur.nodes).forEach(n => { if (n.pending) n.pending = false; });
+  Object.values(cur.nodes).filter(n => n.sug && !n.sug.remove).forEach(n => acceptOne(n.id));
+  topLevel(Object.values(cur.nodes).filter(n => n.sug && n.sug.remove).map(n => n.id)).forEach(id => { if (N(id)) acceptOne(id); });
+});
+$('#rejectAll').onclick = () => commit(() => {
+  Object.values(cur.nodes).forEach(n => { delete n.sug; });
+  topLevel(Object.values(cur.nodes).filter(n => n.pending).map(n => n.id)).forEach(id => removeAndCompact(id));
+});
+
+/* ---------- chat ---------- */
+let chatLog = [], chatMapId = null, chatBusy = null;
+const CHAT_LS = 'structuremindmap.chat.';
+async function loadChat(mapId) {
+  chatMapId = mapId; chatLog = [];
+  try {
+    if (store.mode === 'cloud') { const d = await store.col.doc(mapId + '~chat').get(); if (d.exists) chatLog = (d.data().messages || []).map(m => ({ ...m })); }
+    else { chatLog = JSON.parse(lsGet(CHAT_LS + mapId) || '[]'); }
+  } catch (e) { chatLog = []; }
+  if (chatMapId === mapId) renderChat();
+}
+let chatSaving = Promise.resolve();
+function saveChat(mapId, log) {
+  const body = { messages: log.slice() };
+  const size = JSON.stringify(body).length;
+  if (size > 200000) toast('This chat history is getting large. Use the purge button to clear it if saving fails.');
+  chatSaving = chatSaving.then(async () => {
+    if (store.mode === 'cloud') { try { await store.col.doc(mapId + '~chat').set(body); } catch (e) { toast("The chat history couldn't be saved. Purge it to keep saving."); } }
+    else if (store.mode === 'local') { if (!lsSet(CHAT_LS + mapId, JSON.stringify(log))) toast("The chat history couldn't be saved in this browser."); }
+  });
+}
+async function deleteChat(mapId) {
+  if (store.mode === 'cloud') { try { await store.col.doc(mapId + '~chat').delete(); } catch (e) { } }
+  try { localStorage.removeItem(CHAT_LS + mapId); } catch (e) { }
+}
+function scopeInfo() {
+  const ids = topLevel(sel.filter(id => N(id)));
+  if (!ids.length || (ids.length === 1 && ids[0] === cur.rootId)) return { ids: [], label: 'the whole map' };
+  return { ids, label: ids.length === 1 ? `"${N(ids[0]).text.slice(0, 40)}" and its branch` : `${ids.length} selected branches` };
+}
+function renderScope() { if (!cur) return; $('#scope').textContent = 'Working on ' + scopeInfo().label + '. Claude still sees the whole map.'; }
+function renderChat() {
+  const box = $('#msgs'); box.textContent = '';
+  if (!chatLog.length) {
+    const e = document.createElement('div'); e.className = 'empty';
+    e.innerHTML = '<p>Ask about the map or ask for changes. Claude’s changes appear as suggestions you keep or remove.</p>';
+    ['Find duplicates and overlaps', 'Group these into themes', 'What is missing here?', 'Translate this branch to Finnish'].forEach(t => {
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'chip'; b.textContent = t; b.onclick = () => { $('#chatIn').value = t; $('#chatIn').focus(); }; e.appendChild(b);
+    });
+    box.appendChild(e);
+  }
+  for (const m of chatLog) addBubble(m.role, m.text, m.error);
+  box.scrollTop = box.scrollHeight;
+  $('#chatPurge').disabled = !chatLog.length || !!chatBusy;
+}
+function addBubble(role, text, err) {
+  const box = $('#msgs'), e = box.querySelector('.empty'); if (e) e.remove();
+  const b = document.createElement('div'); b.className = 'msg ' + (role === 'user' ? 'u' : 'a') + (err ? ' err' : '');
+  b.textContent = text; box.appendChild(b); box.scrollTop = box.scrollHeight; return b;
+}
+function buildMapText(A) {
+  const lines = [], ckm = new Map();
+  const rec = (id, d) => {
+    const n = N(id); let t = n.text.replace(/\s*\n\s*/g, ' / ');
+    const flags = [];
+    if (n.collapsed && n.children.length) flags.push('collapsed');
+    if (n.pending) flags.push('suggested, not yet accepted');
+    if (n.sug && n.sug.text) flags.push(`suggested new text: "${n.sug.text}"`);
+    if (n.sug && n.sug.remove) flags.push('suggested for removal');
+    if (n.sug && n.sug.move) flags.push('suggested move');
+    if (cur.checklist) flags.push(isChecked(id, ckm) ? 'done' : 'not done');
+    lines.push('  '.repeat(d) + `- [${A.get(id)}] ${t}` + (flags.length ? ` (${flags.join('; ')})` : ''));
+    n.children.forEach(c => rec(c, d + 1));
+  };
+  rec(cur.rootId, 0); return lines.join('\n');
+}
+function makeTools(A, R) {
+  const res = a => { const id = R.get(String(a || '').trim()); if (!id || !N(id)) throw new Error(`Unknown node id ${a}. Use the ids in square brackets from the map.`); return id; };
+  const alias = id => { if (!A.has(id)) { const k = 'n' + (A.size + 1); A.set(id, k); R.set(k, id); } return A.get(id); };
+  const touch = () => { cur.updated = Date.now(); render(); };
+  const add = (parent, items, after) => {
+    const out = [];
+    let index = null;
+    if (after) { const a = res(after); if (N(a).parent !== parent) throw new Error('"after" must be a child of the parent.'); index = N(parent).children.indexOf(a) + 1; }
+    for (const it of items) {
+      const text = String(it && it.text || '').trim().slice(0, 300); if (!text) continue;
+      const id = addNode(parent, text, index, true); if (index != null) index++;
+      out.push({ id: alias(id), text });
+      if (Array.isArray(it.children) && it.children.length) out.push(...add(id, it.children, null).map(o => ({ ...o, parentId: alias(id) })));
+    }
+    N(parent).collapsed = false; return out;
+  };
+  return [
+    { name: 'add_nodes', description: 'Add new nodes under a parent node. Items may have nested children. New nodes appear to the user as suggestions. Returns the ids of the new nodes.',
+      inputSchema: { type: 'object', properties: { parent: { type: 'string', description: 'Id of the parent node, for example n12' }, after: { type: 'string', description: 'Optional id of an existing child of the parent; the new nodes go right after it. Omit to append at the end.' },
+        nodes: { type: 'array', items: { type: 'object', properties: { text: { type: 'string' }, children: { type: 'array', items: { type: 'object' } } }, required: ['text'] } } }, required: ['parent', 'nodes'] },
+      execute: inp => { const p = res(inp.parent); const out = add(p, Array.isArray(inp.nodes) ? inp.nodes.slice(0, 200) : [], inp.after); touch(); return { ok: true, added: out }; } },
+    { name: 'edit_node', description: "Change a node's text. Shown to the user as a suggested edit.",
+      inputSchema: { type: 'object', properties: { id: { type: 'string' }, text: { type: 'string' } }, required: ['id', 'text'] },
+      execute: inp => { const id = res(inp.id), n = N(id), t = String(inp.text || '').trim().slice(0, 300); if (!t) throw new Error('Text is empty.'); if (n.pending) n.text = t; else if (t !== n.text) n.sug = { ...(n.sug || {}), text: t }; touch(); return { ok: true }; } },
+    { name: 'delete_node', description: 'Remove a node and everything under it. Shown to the user as a suggested removal.',
+      inputSchema: { type: 'object', properties: { id: { type: 'string' } }, required: ['id'] },
+      execute: inp => { const id = res(inp.id); if (id === cur.rootId) throw new Error('The central node cannot be removed.'); if (N(id).pending) removeAndCompact(id); else N(id).sug = { remove: true }; touch(); return { ok: true }; } },
+    { name: 'move_node', description: 'Move a node, with everything under it, to a new parent. Shown to the user as a suggested move.',
+      inputSchema: { type: 'object', properties: { id: { type: 'string' }, new_parent: { type: 'string' }, after: { type: 'string', description: 'Optional id of a child of the new parent to place it after.' } }, required: ['id', 'new_parent'] },
+      execute: inp => {
+        const id = res(inp.id), p = res(inp.new_parent);
+        if (id === cur.rootId) throw new Error('The central node cannot be moved.');
+        if (p === id || isAncestor(id, p)) throw new Error('A node cannot be moved inside itself.');
+        const after = inp.after ? res(inp.after) : null;
+        if (N(id).pending) { const o = N(N(id).parent); o.children.splice(o.children.indexOf(id), 1); const P = N(p); const i = after && N(after).parent === p ? P.children.indexOf(after) + 1 : P.children.length; P.children.splice(i, 0, id); N(id).parent = p; nullPos(id); }
+        else N(id).sug = { ...(N(id).sug || {}), move: { parent: p, after } };
+        touch(); return { ok: true };
+      } }
+  ];
+}
+async function sendChat(text) {
+  if (chatBusy || !cur) return;
+  const s = await getSample();
+  if (!s) { toast('Claude features work when this page is opened in Claude.'); return; }
+  if (editing) commitEdit();
+  const mapId = cur.id, scope = scopeInfo();
+  const A = new Map(), R = new Map(); preorder().forEach((id, i) => { A.set(id, 'n' + (i + 1)); R.set('n' + (i + 1), id); });
+  const scopeText = scope.ids.length
+    ? `The user has selected ${scope.ids.map(id => `[${A.get(id)}] "${N(id).text}"`).join(', ')}. Unless the user clearly asks for something else, only change nodes inside the selected branch${scope.ids.length > 1 ? 'es' : ''} (the selected nodes and everything under them).`
+    : 'Nothing is selected, so the whole map is in scope.';
+  const prompt = `You are the assistant inside StructureMindMap, a mind-mapping and information-architecture tool. The user is talking to you about the map below.
+
+Rules:
+- Change the map only by calling the tools. Every change becomes a suggestion that the user keeps or removes, so make the changes you think are right, then describe them briefly.
+- Scope: ${scopeText}
+- You see the whole map. When relevant, point out inconsistencies, duplicates, overlaps or contradictions with other parts of the map, also outside the scope, but do not change nodes outside the scope unless the user asks.
+- Keep node labels short, about 10 words at most. Write node text in the language of the surrounding nodes unless asked otherwise. Reply in the language the user writes in.
+- In your reply, refer to nodes by their text, never by their ids.
+- If the user only asks a question, answer it without changing the map.
+- Keep replies short and plain. No Markdown headings or tables.
+
+Map (each line is [id] text; indentation shows nesting):
+${buildMapText(A)}${notes().length ? '\n\nStaging area notes (raw ideas, not part of the map; you cannot change them, but you may refer to them and suggest where they belong):\n' + notes().map(n => '- ' + n.text.replace(/\s*\n\s*/g, ' / ')).join('\n') : ''}
+
+User message:
+${text}`;
+  const history = [];
+  for (let i = 0; i + 1 < chatLog.length; i++) { const a = chatLog[i], b = chatLog[i + 1]; if (a.role === 'user' && b.role === 'assistant' && !a.error && !b.error) { history.push({ role: 'user', content: a.text }, { role: 'assistant', content: b.text }); i++; } }
+  const userMsg = { role: 'user', text, ts: Date.now() };
+  chatLog.push(userMsg); addBubble('user', text);
+  const bubble = addBubble('assistant', 'Thinking…');
+  const ctrl = new AbortController(); chatBusy = ctrl; setChatBusy(true);
+  const snap = snapshot();
+  try {
+    const r = await s([...history, { role: 'user', content: prompt }], { tools: makeTools(A, R), signal: ctrl.signal, onText: ({ text }) => { bubble.textContent = text; $('#msgs').scrollTop = $('#msgs').scrollHeight; } });
+    const reply = (r && r.text || '').trim() || 'Done.';
+    bubble.textContent = reply;
+    if (chatMapId === mapId) chatLog.push({ role: 'assistant', text: reply, ts: Date.now() });
+  } catch (e) {
+    const c = e && e.code;
+    const msg = ctrl.signal.aborted ? 'Stopped.' : c === 'not_granted' ? 'Claude access was not allowed for this page.' : c === 'rate_limited' ? 'Your Claude usage limit is reached. Try again later.' : "Claude couldn't answer. Try again.";
+    bubble.textContent = (e && e.text ? e.text + '\n\n' : '') + msg; bubble.classList.add('err');
+    userMsg.error = true; if (chatMapId === mapId) chatLog.push({ role: 'assistant', text: bubble.textContent, ts: Date.now(), error: true });
+  } finally {
+    chatBusy = null; setChatBusy(false);
+    if (cur && cur.id === mapId && snapshot() !== snap) { pushUndo(snap); changed(); }
+    saveChat(mapId, maps[mapId] ? chatLog : []);
+  }
+}
+function setChatBusy(b) { $('#chatSend').textContent = b ? 'Stop' : 'Send'; $('#chatSend').classList.toggle('primary', !b); $('#chatPurge').disabled = b || !chatLog.length; }
+$('#chatBtn').onclick = () => { const open = !vp.classList.contains('chat-open'); setPanel('chat', open); if (open) { renderScope(); if (chatMapId !== cur.id) loadChat(cur.id); else renderChat(); setTimeout(() => $('#chatIn').focus(), 0); } };
+$('#chatClose').onclick = () => { setPanel('chat', false); vp.focus({ preventScroll: true }); };
+$('#chatForm').addEventListener('submit', e => { e.preventDefault(); if (chatBusy) { chatBusy.abort(); return; } const t = $('#chatIn').value.trim(); if (!t) return; $('#chatIn').value = ''; sendChat(t); });
+$('#chatIn').addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); $('#chatForm').requestSubmit(); } });
+$('#chatPurge').onclick = () => askConfirm('Purge chat history?', `All messages in this map's chat will be deleted. The map itself is not changed. This can't be undone.`, 'Purge', () => { chatLog = []; renderChat(); deleteChat(cur.id); });
+function askConfirm(title, text, okLabel, fn) {
+  const dl = $('#confirmDlg');
+  $('#confirmTitle').textContent = title; $('#confirmText').textContent = text; $('#confirmOk').textContent = okLabel;
+  dl.returnValue = ''; dl.showModal();
+  dl.onclose = () => { if (dl.returnValue === 'ok') fn(); };
+}
+
+/* ---------- storage ---------- */
+// Every change is written at once to a copy in this browser, then to the Claude account. On load the two are merged
+// (newest version of each map wins), so a reload or a failed account save never drops a map.
+const store = { mode: 'memory', col: null, ns: 'structuremindmap.anon.', localOk: false, fails: 0, warned: {} };
+const LS = 'structuremindmap.maps', LAST = 'structuremindmap.last';
+function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+function lsSet(k, v) { try { localStorage.setItem(k, v); return true; } catch (e) { return false; } }
+function lsDel(k) { try { localStorage.removeItem(k); } catch (e) { } }
+const valid = m => m && typeof m === 'object' && m.rootId && m.nodes && m.nodes[m.rootId];
+const timeout = (p, ms) => Promise.race([p, new Promise((_, r) => setTimeout(() => r({ code: 'timeout' }), ms))]);
+const clone = m => JSON.parse(JSON.stringify(m));
+const mapKey = id => store.ns + 'map.' + id;
+// Newer version: later edit time, then more saves (position-only changes don't touch the edit time).
+const newer = (a, b) => ((a.updated || 0) - (b.updated || 0)) || ((a.rev || 0) - (b.rev || 0));
+function warnOnce(key, msg) { if (!store.warned[key]) { store.warned[key] = true; toast(msg); } }
+function localIds() {
+  const out = [], pre = store.ns + 'map.';
+  try { for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k && k.startsWith(pre)) out.push(k.slice(pre.length)); } } catch (e) { }
+  return out;
+}
+function readLocalMap(id) { try { const v = JSON.parse(lsGet(mapKey(id)) || 'null'); return valid(v) ? v : null; } catch (e) { return null; } }
+function writeLocalMap(m) {
+  if (!store.localOk || !m) return false;
+  const ok = lsSet(mapKey(m.id), JSON.stringify(m));
+  if (!ok) warnOnce('lsfull', "This browser's storage is full, so the backup copy couldn't be updated.");
+  return ok;
+}
+function tombstones() { try { return JSON.parse(lsGet(store.ns + 'deleted') || '{}') || {}; } catch (e) { return {}; } }
+function setTombstone(id, on) { const t = tombstones(); if (on) t[id] = Date.now(); else delete t[id]; lsSet(store.ns + 'deleted', JSON.stringify(t)); }
+function readLocalAll() {
+  const tomb = tombstones(), out = {};
+  for (const id of localIds()) { if (tomb[id]) continue; const m = readLocalMap(id); if (m) out[id] = m; }
+  // Maps saved by earlier versions in a single browser key: move them into the per-map copies.
+  let legacy = null; try { legacy = JSON.parse(lsGet(LS) || 'null'); } catch (e) { }
+  if (legacy && typeof legacy === 'object') {
+    for (const k in legacy) { const m = legacy[k]; if (valid(m) && !tomb[k] && (!out[k] || newer(m, out[k]) > 0)) { out[k] = m; writeLocalMap(m); } }
+    lsDel(LS);
+  }
+  return out;
+}
+// Merge account maps into `into`. Returns ids whose shown copy changed.
+function mergeCloud(into, cloud) {
+  const tomb = tombstones(), replaced = [];
+  for (const id in cloud) {
+    if (tomb[id]) { store.col.doc(id).delete().then(() => setTombstone(id, false)).catch(() => { }); continue; }
+    const c = cloud[id], l = into[id];
+    const d = l ? newer(c, l) : 1;
+    if (d > 0) { into[id] = c; writeLocalMap(c); replaced.push(id); }
+    else if (d < 0) dirty.add(id);
+  }
+  for (const id in into) if (!cloud[id]) dirty.add(id);
+  return replaced;
+}
+async function loadCloud() {
+  const snap = await timeout(store.col.get(), 10000), cloud = {};
+  for (const d of snap.docs) { const v = d.data(); if (valid(v)) cloud[d.id] = clone(v); }
+  return cloud;
+}
+let reconnectTimer = null;
+function scheduleReconnect() {
+  clearTimeout(reconnectTimer);
+  reconnectTimer = setTimeout(async () => {
+    try {
+      const cloud = await loadCloud();
+      store.mode = 'cloud'; store.fails = 0;
+      const replaced = mergeCloud(maps, cloud);
+      if (cur && replaced.includes(cur.id) && !editing) switchMap(cur.id);
+      refreshMapList(); setStatus('saved');
+      if (dirty.size) { clearTimeout(saveTimer); saveTimer = setTimeout(flush, 300); }
+    } catch (e) { scheduleReconnect(); }
+  }, 30000);
+}
+async function initStore() {
+  store.localOk = lsSet('structuremindmap.probe', '1');
+  let cloud = null;
+  if (window.claude && window.claude.use) {
+    try {
+      const [u, db] = await Promise.all([window.claude.use('user'), window.claude.use('db')]);
+      const id = u ? await u.id() : null;
+      if (db && id) { store.col = db.collection('data/users/' + id); store.ns = 'structuremindmap.u.' + id + '.'; }
+    } catch (e) { store.col = null; }
+    if (store.col) { try { cloud = await loadCloud(); } catch (e) { cloud = null; } }
+  }
+  maps = store.localOk ? readLocalAll() : {};
+  if (cloud) { store.mode = 'cloud'; mergeCloud(maps, cloud); }
+  else {
+    store.mode = store.localOk ? 'local' : 'memory';
+    if (store.col) { warnOnce('offline', "Your Claude account couldn't be reached. Maps are kept in this browser and will sync when it's back."); scheduleReconnect(); }
+  }
+  const last = lsGet(LAST), list = Object.values(maps).sort((a, b) => b.updated - a.updated);
+  if (last && maps[last]) switchMap(last);
+  else if (list.length) switchMap(list[0].id);
+  else { const m = welcomeMap(); maps[m.id] = m; switchMap(m.id); scheduleSave(); }
+  $('#loading').style.display = 'none';
+  setStatus(dirty.size ? 'pending' : 'saved');
+  if (dirty.size) { clearTimeout(saveTimer); saveTimer = setTimeout(flush, 500); }
+}
+let saveTimer = null, saving = false; const dirty = new Set();
+function scheduleSave() {
+  if (!cur) return;
+  cur.rev = (cur.rev || 0) + 1; cur.title = mapName(cur).slice(0, 200);
+  dirty.add(cur.id); writeLocalMap(cur);
+  setStatus('pending'); clearTimeout(saveTimer); saveTimer = setTimeout(flush, 700);
+}
+async function flush() {
+  clearTimeout(saveTimer);
+  if (saving) { saveTimer = setTimeout(flush, 400); return; }
+  saving = true; const ids = [...dirty]; dirty.clear();
+  try {
+    for (const id of ids) {
+      const m = maps[id]; if (!m) continue;
+      m.title = mapName(m).slice(0, 200);
+      writeLocalMap(m);
+      if (store.mode === 'cloud') {
+        try { await timeout(store.col.doc(id).set(clone(m)), 15000); store.fails = 0; }
+        catch (e) {
+          dirty.add(id); store.fails++;
+          if (e && e.code === 'quota_exceeded') warnOnce('quota', 'Your account storage for this tool is full. Delete a map to keep saving.');
+          else if (store.fails >= 3) warnOnce('cloudfail', "Saving to your Claude account keeps failing. Your maps are kept in this browser and saving keeps retrying.");
+        }
+      }
+    }
+  } finally {
+    saving = false;
+    setStatus(dirty.size ? 'retry' : 'saved');
+    if (dirty.size) saveTimer = setTimeout(flush, Math.min(30000, 2000 * 2 ** Math.min(store.fails, 4)));
+    refreshMapList();
+  }
+}
+function saveNow() { for (const id of dirty) writeLocalMap(maps[id]); if (dirty.size) flush(); }
+addEventListener('pagehide', () => { try { if (editing) commitEdit(); if (editingNote) commitNoteEdit(); } catch (e) { } saveNow(); });
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') saveNow(); });
+function setStatus(s) {
+  const t = store.mode === 'cloud' ? 'Saved' : store.mode === 'local' ? 'Saved in this browser' : 'Not saved: copy your map before leaving';
+  $('#status').textContent = s === 'pending' ? 'Saving…' : s === 'retry' && store.mode === 'cloud' ? (store.localOk ? 'Saved in this browser, retrying' : 'Retrying save…') : t;
+  $('#storeNote').textContent = store.mode === 'cloud' ? 'Maps are saved automatically to your Claude account, with a backup copy in this browser. Only you can see them.' :
+    store.mode === 'local' ? (store.col ? 'Your Claude account is unreachable. Maps are saved in this browser and will sync when it is back.' : 'Maps are saved automatically in this browser only.') : 'Maps cannot be saved here. Use Copy to keep your work.';
+}
+async function deleteMap(id) {
+  const m = maps[id]; if (!m) return;
+  delete maps[id]; dirty.delete(id); deleteChat(id); lsDel(mapKey(id));
+  if (store.col) { setTombstone(id, true); if (store.mode === 'cloud') { try { await store.col.doc(id).delete(); setTombstone(id, false); } catch (e) { } } }
+  if (cur && cur.id === id) { const list = Object.values(maps).sort((a, b) => b.updated - a.updated); if (list.length) switchMap(list[0].id); else { const n = makeMap('New map'); maps[n.id] = n; switchMap(n.id); scheduleSave(); } }
+  refreshMapList();
+}
+
+/* ---------- maps ---------- */
+function clearCanvas() { for (const [, el] of els) el.remove(); els.clear(); for (const [, el] of stageEls) el.remove(); stageEls.clear(); editingNote = null; noteSnap = null; clearStageSel(); }
+function switchMap(id) {
+  if (editing) commitEdit();
+  if (chatBusy) chatBusy.abort();
+  cur = maps[id]; sel = []; undoStack = []; redoStack = []; clearCanvas(); prevSz = {}; prevVis = new Set();
+  chatMapId = null; if (vp.classList.contains('chat-open')) loadChat(id);
+  lsSet(LAST, id); render(); fit(); refreshMapList();
+}
+function refreshMapList() {
+  if (renaming) return;
+  const list = Object.values(maps).sort((a, b) => b.updated - a.updated), ul = $('#maplist');
+  ul.textContent = '';
+  for (const m of list) {
+    const li = document.createElement('li'); if (cur && m.id === cur.id) li.className = 'cur';
+    const o = document.createElement('button'); o.className = 'open';
+    const name = document.createElement('span'); name.textContent = mapName(m);
+    const when = document.createElement('small'); when.textContent = `${Object.keys(m.nodes).length} nodes · ${new Date(m.updated).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}`;
+    o.append(name, when); o.onclick = () => { switchMap(m.id); $('#drawer').classList.remove('open'); };
+    const rn = document.createElement('button'); rn.className = 'del'; rn.innerHTML = '<svg class="i" viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="m13 7 4 4"/></svg>'; rn.title = 'Rename map'; rn.setAttribute('aria-label', 'Rename map');
+    rn.onclick = () => startRename(name, m, true);
+    name.ondblclick = e => { e.stopPropagation(); startRename(name, m, true); };
+    const d = document.createElement('button'); d.className = 'del'; d.textContent = '✕'; d.title = 'Delete map'; d.setAttribute('aria-label', 'Delete map');
+    d.onclick = () => confirmDelete(m);
+    li.append(o, rn, d); ul.appendChild(li);
+  }
+}
+function confirmDelete(m) {
+  askConfirm('Delete map?', `"${mapName(m).slice(0, 80)}" and its ${Object.keys(m.nodes).length} nodes will be deleted, together with its chat history. This can't be undone.`, 'Delete', () => deleteMap(m.id));
+}
+function mapName(m) { return (m.name && m.name.trim()) || (m.nodes[m.rootId] && m.nodes[m.rootId].text) || 'Untitled'; }
+let renaming = false;
+/* Inline rename: swaps the name for a text field; Enter or leaving the field saves, Escape cancels, empty restores the default (the central node's text). */
+function startRename(el, m, inDrawer) {
+  if (renaming) return;
+  renaming = true;
+  const input = document.createElement('input'); input.className = 'rn'; input.value = mapName(m); input.maxLength = 200;
+  input.setAttribute('aria-label', 'Map name');
+  const host = inDrawer ? el.closest('li') : el;
+  if (inDrawer) host.querySelector('.open').style.display = 'none', host.prepend(input); else { el.style.display = 'none'; el.after(input); }
+  input.focus(); input.select();
+  let done = false;
+  const finish = save => {
+    if (done) return; done = true; renaming = false;
+    if (save) {
+      const v = input.value.trim(), def = (m.nodes[m.rootId] && m.nodes[m.rootId].text) || 'Untitled';
+      const next = v && v !== def ? v.slice(0, 200) : '';
+      if ((m.name || '') !== next) { m.name = next; m.updated = Date.now(); dirty.add(m.id); setStatus('pending'); clearTimeout(saveTimer); saveTimer = setTimeout(flush, 500); }
+    }
+    input.remove(); el.style.display = '';
+    if (inDrawer) { const o = host.querySelector('.open'); if (o) o.style.display = ''; }
+    refreshMapList(); if (cur) updateUI();
+    if (!inDrawer) vp.focus({ preventScroll: true });
+  };
+  input.addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Enter') { e.preventDefault(); finish(true); } else if (e.key === 'Escape') { e.preventDefault(); finish(false); } });
+  input.addEventListener('blur', () => finish(true));
+  input.addEventListener('pointerdown', e => e.stopPropagation());
+}
+$('#mapTitle').onclick = () => startRename($('#mapTitle'), cur, false);
+$('#mapsBtn').onclick = () => { refreshMapList(); $('#drawer').classList.toggle('open'); };
+$('#newMapBtn').onclick = () => { const m = makeMap('New map'); maps[m.id] = m; switchMap(m.id); $('#drawer').classList.remove('open'); scheduleSave(); sel = [m.rootId]; startEdit(m.rootId, undefined, { selectAll: true }); };
+
+function welcomeMap() {
+  const m = makeMap('Welcome to StructureMindMap'); const prev = cur; cur = m;
+  const branches = [
+    ['Build', '#3e63dd', ['Tab adds a child', 'Enter adds a sibling', 'Double-click or F2 edits text', 'Alt/Option+Enter adds a line break while editing']],
+    ['Organize', '#30a46c', ['Drag nodes onto another branch', 'Shift+click or drag a box to select several', 'Delete removes a node and its children', 'Ctrl/Cmd+Z undoes, add Shift to redo']],
+    ['Paste and copy', '#f76b15', ['Paste an indented list onto a node', 'Copy gives you a nested Markdown list']],
+    ['Ask Claude', '#8e4ec6', ['Expand suggests ideas for selected nodes', 'Generate turns notes into a branch', 'Keep or remove each suggestion']],
+    ['Navigate', '#12a594', ['Scroll or right-drag pans the map', 'Ctrl/Cmd+scroll or pinch zooms', 'Try the Tree and Sitemap layouts']]
+  ];
+  for (const [t, c, kids] of branches) { const b = addNode(m.rootId, t); N(b).color = c; kids.forEach(k => addNode(b, k)); }
+  m.staging = [{ id: 's' + uid(), text: 'This is the staging area for raw ideas. Drag a note onto a node to put it in the map.' }, { id: 's' + uid(), text: 'Select the area and paste a list: you can make one note, or one note per line.' }, { id: 's' + uid(), text: 'A long, rambling note can become a tidy branch: select it and use Structure with Claude. Claude picks the best spot in the map, or uses the node you have selected.' }];
+  cur = prev; return m;
+}
+
+addEventListener('resize', () => { if (cur) applyView(); });
+if (lsGet('structuremindmap.stage') !== '0' && innerWidth >= 900) { vp.classList.add('stage-open'); vp.style.setProperty('--lp', $('#stage').offsetWidth + 'px'); }
+else $('#stageBtn').setAttribute('aria-pressed', 'false');
+applyView();
+setStatus('pending'); $('#status').textContent = '';
+{ const v = document.querySelector('meta[name=structuremindmap-version]'); if (v) $('#appVersion').textContent = 'StructureMindMap v' + v.content; }
+initStore().catch(() => { maps = store.localOk ? readLocalAll() : {}; store.mode = store.localOk ? 'local' : 'memory'; const l = Object.values(maps).sort((a, b) => b.updated - a.updated); if (l.length) { switchMap(l[0].id); $('#loading').style.display = 'none'; setStatus('saved'); return; } const m = welcomeMap(); maps[m.id] = m; switchMap(m.id); $('#loading').style.display = 'none'; setStatus('saved'); });
+
+/* ---------- tooltips for toolbar and panel buttons ---------- */
+const TIPS = {
+  mapsBtn: ['Your maps', 'Open, create, rename and delete maps'],
+  mapTitle: ['Rename this map', 'Click to edit the name'],
+  expandBtn: ['Expand', 'Claude suggests child ideas for the selected nodes', 'Select a node first'],
+  genBtn: ['Generate', 'Claude turns pasted text into a branch or a new map'],
+  stageBtn: ['Staging area', 'Show or hide the raw notes panel'],
+  chatBtn: ['Chat', 'Ask Claude about the map or ask for changes'],
+  checkBtn: ['Checklist', 'Tick nodes off. Ctrl/Cmd+Enter ticks the selection'],
+  tidyBtn: ['Tidy', 'Neatly re-arrange the selected branch', 'Select a node with children first'],
+  colorBtn: ['Colour', 'Colour of the selected nodes; children inherit it', 'Select a node first'],
+  delBtn: ['Delete', 'Delete the selection and its children (Del)', 'Select something to delete first'],
+  undoBtn: ['Undo', 'Ctrl/Cmd+Z', 'Nothing to undo'],
+  redoBtn: ['Redo', 'Shift+Ctrl/Cmd+Z', 'Nothing to redo'],
+  copyBtn: ['Copy', 'Copy the selection, or the whole map, as a nested list'],
+  helpBtn: ['Shortcuts', 'All keyboard and mouse shortcuts'],
+  zoomOut: ['Zoom out', 'Or Ctrl/Cmd+scroll'],
+  zoomLbl: ['Zoom level', 'Click to reset to 100%'],
+  zoomIn: ['Zoom in', 'Or Ctrl/Cmd+scroll'],
+  fitBtn: ['Fit', 'Fit the whole map on screen (Shift+1)'],
+  centerBtn: ['Center', 'Center the map without zooming (Shift+2)'],
+  stageAdd: ['Add a note', 'Or press Enter with the panel selected'],
+  stageClose: ['Hide the staging area', 'Show it again with the Notes button'],
+  chatPurge: ['Purge chat history', "Delete this map's chat messages"],
+  chatClose: ['Close the chat', ''],
+  newMapBtn: ['New map', 'Start an empty map']
+};
+const LAYOUT_TIPS = { mindmap: ['Mind map', 'Re-arranges the map once: branches on both sides of the centre'], tree: ['Tree', 'Re-arranges the map once: left to right'], sitemap: ['Sitemap', 'Re-arranges the map once: first level side by side, the rest stacked below'] };
+let claudeMissing = false;
+function tipFor(el) {
+  const t = el.dataset.layout ? LAYOUT_TIPS[el.dataset.layout] : TIPS[el.id]; if (!t) return null;
+  let sub = t[1];
+  if (el.disabled && t[2]) sub = t[2];
+  if (claudeMissing && (el.id === 'expandBtn' || el.id === 'genBtn' || el.id === 'chatBtn')) sub = 'Works when this page is opened in Claude';
+  return [t[0], sub];
+}
+for (const id in TIPS) { const el = document.getElementById(id); if (el) { el.dataset.tip = '1'; el.removeAttribute('title'); } }
+document.querySelectorAll('.seg button').forEach(b => { b.dataset.tip = '1'; b.removeAttribute('title'); });
+const tipEl = $('#tip'); let tipTarget = null, tipTimer = 0, tipShownAt = 0;
+function hideTip() { clearTimeout(tipTimer); tipTarget = null; tipEl.classList.remove('on'); tipShownAt = tipEl.classList.contains('on') ? Date.now() : tipShownAt; }
+function showTip(el) {
+  const t = tipFor(el); if (!t) return;
+  tipEl.textContent = ''; const b = document.createElement('b'); b.textContent = t[0]; tipEl.appendChild(b);
+  if (t[1]) { tipEl.appendChild(document.createElement('br')); tipEl.appendChild(document.createTextNode(t[1])); }
+  const r = el.getBoundingClientRect(), w = tipEl.offsetWidth, h = tipEl.offsetHeight;
+  const below = r.top < innerHeight / 2;
+  tipEl.style.left = Math.max(6, Math.min(innerWidth - w - 6, r.left + r.width / 2 - w / 2)) + 'px';
+  tipEl.style.top = (below ? r.bottom + 8 : r.top - h - 8) + 'px';
+  tipEl.classList.add('on'); tipShownAt = Date.now();
+}
+document.addEventListener('pointermove', e => {
+  if (e.pointerType === 'touch' || e.buttons) return;
+  const hit = document.elementFromPoint(e.clientX, e.clientY), el = hit && hit.closest('[data-tip]');
+  if (el === tipTarget) return;
+  clearTimeout(tipTimer); tipTarget = el;
+  if (!el) { tipEl.classList.remove('on'); tipShownAt = Date.now(); return; }
+  const quick = tipEl.classList.contains('on') || Date.now() - tipShownAt < 400;
+  tipEl.classList.remove('on');
+  tipTimer = setTimeout(() => { if (tipTarget === el) showTip(el); }, quick ? 60 : 450);
+}, { passive: true });
+['pointerdown', 'keydown', 'wheel'].forEach(t => document.addEventListener(t, () => { clearTimeout(tipTimer); tipEl.classList.remove('on'); tipTarget = null; }, { passive: true, capture: true }));
+document.addEventListener('pointerleave', () => { clearTimeout(tipTimer); tipEl.classList.remove('on'); tipTarget = null; });
+getSample().then(s => { if (!s) claudeMissing = true; });
+}
+</script>
+</body>
+</html>

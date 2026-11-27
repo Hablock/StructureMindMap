@@ -1,0 +1,13 @@
+{
+  "name": "structuremindmap",
+  "displayName": "StructureMindMap",
+  "version": "2.8.0",
+  "description": "Installs and updates StructureMindMap, a mind-mapping and information-architecture app, as your own Claude artifact.",
+  "author": {
+    "name": "Henri Block",
+    "url": "https://github.com/Hablock"
+  },
+  "homepage": "https://github.com/Hablock/StructureMindMap",
+  "repository": "https://github.com/Hablock/StructureMindMap",
+  "keywords": ["mind map", "information architecture", "sitemap", "artifact"]
+}
